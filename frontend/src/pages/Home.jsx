@@ -471,14 +471,14 @@ const Home = () => {
                     {leftBanner.link ? (
                       <a href={leftBanner.link} target="_blank" rel="noopener noreferrer">
                         <img
-                          src={leftBanner.image}
+                          src={getImageUrl(leftBanner.image)}
                           alt={leftBanner.title || 'Banner trái'}
                           className="w-full h-full object-cover"
                         />
                       </a>
                     ) : (
                       <img
-                        src={leftBanner.image}
+                        src={getImageUrl(leftBanner.image)}
                         alt={leftBanner.title || 'Banner trái'}
                         className="w-full h-full object-cover"
                       />
@@ -490,14 +490,14 @@ const Home = () => {
                     {rightBanner.link ? (
                       <a href={rightBanner.link} target="_blank" rel="noopener noreferrer">
                         <img
-                          src={rightBanner.image}
+                          src={getImageUrl(rightBanner.image)}
                           alt={rightBanner.title || 'Banner phải'}
                           className="w-full h-full object-cover"
                         />
                       </a>
                     ) : (
                       <img
-                        src={rightBanner.image}
+                        src={getImageUrl(rightBanner.image)}
                         alt={rightBanner.title || 'Banner phải'}
                         className="w-full h-full object-cover"
                       />
