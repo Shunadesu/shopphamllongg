@@ -29,8 +29,10 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 // Middleware
+// ⚠️  TEMPORARY CORS — chấp nhận mọi origin trong giai đoạn chuyển domain
+// TODO: khóa lại sau khi deploy hoàn tất
 app.use(cors({
-  origin: [process.env.CLIENT_URL, process.env.ADMIN_URL],
+  origin: true,
   credentials: true
 }));
 app.use(express.json());

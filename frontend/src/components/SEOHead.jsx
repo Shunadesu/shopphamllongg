@@ -10,10 +10,10 @@ export default function SEOHead({
   canonical,
   type = 'website',
 }) {
-  const siteName = 'Shop Luan Huỳnh';
+  const siteName = 'Shop Pham Long';
   const defaultDescription = 'Cung cấp tài khoản game giá rẻ, uy tín, chất lượng. Mua bán tài khoản Liên Quân, PUBG, Free Fire, Genshin Impact và nhiều game khác.';
   const defaultKeywords = 'mua tai khoan game, tai khoan game gia re, ban tai khoan, lien quan mobile, pubg mobile, free fire, genshin impact';
-  const defaultOgImage = 'https://via.placeholder.com/1200x630/1e293b/0ea5e9?text=Shop+Luan+Huynh';
+  const defaultOgImage = 'https://phamlongfco.online/favicon-512x512.png';
 
   const fullTitle = title ? `${title} | ${siteName}` : `${siteName} - Mua Bán Tài Khoản Game Giá Rẻ`;
   const metaDescription = description || defaultDescription;

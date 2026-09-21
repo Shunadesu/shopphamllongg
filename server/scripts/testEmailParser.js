@@ -13,7 +13,7 @@ Tai khoan cua Quy khach vua co giao dich:
 Tai khoan: 123456789
 So tien: +500,000 VND
 Noi dung: NAP123456
-Tai khoan nhan: Shop Luan Huynh
+Tai khoan nhan: Shop Pham Long
 So du hien tai: 1,000,000 VND
 
 Tran trong!
@@ -26,7 +26,7 @@ Thong bao giao dich
 Tai khoan: 123456789  
 Giao dich: +500,000 VND
 Ma GD: NAP123456
-Tai khoan nhan: Shop Luan Huynh
+Tai khoan nhan: Shop Pham Long
 `
   },
   {
@@ -38,7 +38,7 @@ Your account has a new transaction:
 Account: 123456789
 Amount: +500.000 VND
 Content: NAP123456
-Receiver: Shop Luan Huynh
+Receiver: Shop Pham Long
 `
   },
   {

@@ -48,7 +48,7 @@ const Checkout = () => {
       <div className="min-h-screen pt-16 pb-6">
         <SEOHead
           title="Giỏ hàng trống"
-          description="Giỏ hàng của bạn đang trống. Hãy tiếp tục mua sắm tài khoản game chất lượng cao tại Shop Luan Huỳnh."
+          description="Giỏ hàng của bạn đang trống. Hãy tiếp tục mua sắm tài khoản game chất lượng cao tại Shop Pham Long."
           type="website"
         />
         <div className="container-custom">
@@ -67,7 +67,7 @@ const Checkout = () => {
     <div className="min-h-screen pt-16 pb-6">
       <SEOHead
         title="Thanh toán"
-        description={`Thanh toán ${items.length} tài khoản game với tổng cộng ${totalAmount.toLocaleString('vi-VN')}đ tại Shop Luan Huỳnh.`}
+        description={`Thanh toán ${items.length} tài khoản game với tổng cộng ${totalAmount.toLocaleString('vi-VN')}đ tại Shop Pham Long.`}
         type="website"
       />
       <div className="container-custom">

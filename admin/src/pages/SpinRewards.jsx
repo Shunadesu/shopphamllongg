@@ -212,95 +212,130 @@ export default function SpinRewards() {
         )}
       </div>
 
-      {/* Rewards List */}
+      {/* Rewards Table */}
       {isLoading ? (
         <div className="text-center py-12">
           <GiSpinningBlades className="w-12 h-12 mx-auto text-cyan-400 animate-spin" />
         </div>
       ) : rewards && rewards.length > 0 ? (
-        <div className="grid gap-4">
-          {rewards.map((reward) => (
-            <div
-              key={reward._id}
-              className="bg-slate-950 border border-slate-800 rounded-xl p-6 hover:border-slate-700 transition-colors"
-            >
-              <div className="flex items-start gap-4">
-                {/* Color Preview */}
-                <div
-                  className="w-12 h-12 rounded-lg flex-shrink-0"
-                  style={{ backgroundColor: reward.color }}
-                />
+        <div className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-slate-900 text-slate-400 uppercase text-xs font-semibold">
+              <tr>
+                <th className="px-4 py-3 w-12">Màu</th>
+                <th className="px-4 py-3">Nhãn</th>
+                <th className="px-4 py-3">Loại</th>
+                <th className="px-4 py-3">Giá trị</th>
+                <th className="px-4 py-3 text-center">Xác suất</th>
+                <th className="px-4 py-3 text-center">Tồn kho</th>
+                <th className="px-4 py-3 text-center">Trạng thái</th>
+                <th className="px-4 py-3 text-center">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {rewards.map((reward) => (
+                <tr
+                  key={reward._id}
+                  className="text-slate-300 hover:bg-slate-900/50 transition-colors"
+                >
+                  {/* Color */}
+                  <td className="px-4 py-3">
+                    <div
+                      className="w-7 h-7 rounded border border-slate-700"
+                      style={{ backgroundColor: reward.color }}
+                      title={reward.color}
+                    />
+                  </td>
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-4 mb-2">
-                    <div>
-                      <h3 className="text-lg font-bold text-slate-200">{reward.label}</h3>
-                      <div className="flex items-center gap-3 mt-1">
-                        <span className="text-sm px-2 py-0.5 bg-slate-800 text-slate-300 rounded">
-                          {reward.rewardType === 'cash' && '💰 Tiền mặt'}
-                          {reward.rewardType === 'account' && '🎮 Tài khoản'}
-                          {reward.rewardType === 'voucher' && '🎫 Voucher'}
-                          {reward.rewardType === 'nothing' && '❌ Chúc bạn may mắn'}
-                        </span>
-                        <span className="text-sm px-2 py-0.5 bg-cyan-500/20 text-cyan-400 rounded font-semibold">
-                          {reward.probability}%
-                        </span>
-                        {reward.stock !== null && (
-                          <span className="text-sm px-2 py-0.5 bg-orange-500/20 text-orange-400 rounded flex items-center gap-1">
-                            <FiPackage className="w-3 h-3" />
-                            {reward.stock} còn lại
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                  {/* Label */}
+                  <td className="px-4 py-3 font-semibold text-slate-200">{reward.label}</td>
 
-                    {/* Actions */}
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleToggleActive(reward)}
-                        className={`p-2 rounded-lg transition-colors ${
-                          reward.isActive
-                            ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
-                            : 'bg-slate-800 text-slate-500 hover:bg-slate-700'
-                        }`}
-                        title={reward.isActive ? 'Tắt' : 'Bật'}
-                      >
-                        {reward.isActive ? <FiToggleRight size={20} /> : <FiToggleLeft size={20} />}
-                      </button>
+                  {/* Reward Type */}
+                  <td className="px-4 py-3">
+                    <span className="text-sm px-2 py-0.5 bg-slate-800 text-slate-300 rounded">
+                      {reward.rewardType === 'cash' && '💰 Tiền mặt'}
+                      {reward.rewardType === 'account' && '🎮 Tài khoản'}
+                      {reward.rewardType === 'voucher' && '🎫 Voucher'}
+                      {reward.rewardType === 'nothing' && '❌ Chúc bạn may mắn'}
+                    </span>
+                  </td>
+
+                  {/* Value Details */}
+                  <td className="px-4 py-3 text-slate-400">
+                    {reward.rewardType === 'cash' && (
+                      <span className="text-green-400">{reward.value?.toLocaleString('vi-VN')}đ</span>
+                    )}
+                    {reward.rewardType === 'voucher' && (
+                      <span className="text-orange-400 font-mono">{reward.voucherCode}</span>
+                    )}
+                    {reward.rewardType === 'voucher' && (
+                      <span className="ml-1 text-orange-400">– {reward.voucherDiscount}%</span>
+                    )}
+                    {reward.rewardType === 'account' && reward.accountId && (
+                      <span className="text-purple-400">{reward.accountId.title}</span>
+                    )}
+                    {reward.rewardType === 'nothing' && (
+                      <span className="text-slate-500">—</span>
+                    )}
+                  </td>
+
+                  {/* Probability */}
+                  <td className="px-4 py-3 text-center">
+                    <span className={`font-semibold ${reward.probability >= 50 ? 'text-cyan-400' : 'text-slate-300'}`}>
+                      {reward.probability}%
+                    </span>
+                  </td>
+
+                  {/* Stock */}
+                  <td className="px-4 py-3 text-center">
+                    {reward.stock !== null ? (
+                      <span className={`text-sm ${reward.stock === 0 ? 'text-red-400' : 'text-orange-400'}`}>
+                        {reward.stock}
+                      </span>
+                    ) : (
+                      <span className="text-slate-600 text-xs">∞</span>
+                    )}
+                  </td>
+
+                  {/* Active Toggle */}
+                  <td className="px-4 py-3 text-center">
+                    <button
+                      onClick={() => handleToggleActive(reward)}
+                      className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold transition-colors ${
+                        reward.isActive
+                          ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+                          : 'bg-slate-800 text-slate-500 hover:bg-slate-700'
+                      }`}
+                      title={reward.isActive ? 'Đang bật – click để tắt' : 'Đang tắt – click để bật'}
+                    >
+                      {reward.isActive ? <FiToggleRight size={16} /> : <FiToggleLeft size={16} />}
+                      {reward.isActive ? 'Bật' : 'Tắt'}
+                    </button>
+                  </td>
+
+                  {/* Actions */}
+                  <td className="px-4 py-3 text-center">
+                    <div className="flex items-center justify-center gap-1">
                       <button
                         onClick={() => handleOpenModal(reward)}
-                        className="p-2 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded-lg transition-colors"
+                        className="p-1.5 hover:bg-slate-800 text-cyan-400 rounded transition-colors"
                         title="Sửa"
                       >
-                        <FiEdit2 />
+                        <FiEdit2 size={16} />
                       </button>
                       <button
                         onClick={() => handleDelete(reward._id)}
-                        className="p-2 bg-slate-800 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors"
+                        className="p-1.5 hover:bg-red-500/20 text-red-400 rounded transition-colors"
                         title="Xóa"
                       >
-                        <FiTrash2 />
+                        <FiTrash2 size={16} />
                       </button>
                     </div>
-                  </div>
-
-                  {/* Reward Details */}
-                  <div className="text-sm text-slate-400 space-y-1">
-                    {reward.rewardType === 'cash' && (
-                      <p>Giá trị: <span className="text-green-400 font-semibold">{reward.value?.toLocaleString('vi-VN')}đ</span></p>
-                    )}
-                    {reward.rewardType === 'voucher' && (
-                      <p>Mã: <span className="font-mono text-orange-400">{reward.voucherCode}</span> - Giảm {reward.voucherDiscount}%</p>
-                    )}
-                    {reward.rewardType === 'account' && reward.accountId && (
-                      <p>Tài khoản: <span className="text-purple-400">{reward.accountId.title}</span></p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       ) : (
         <div className="bg-slate-950 border border-slate-800 rounded-xl p-12 text-center">

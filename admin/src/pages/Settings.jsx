@@ -858,7 +858,7 @@ export default function Settings() {
                 value={seoForm.seoTitle}
                 onChange={(e) => setSeoForm({ ...seoForm, seoTitle: e.target.value })}
                 className="input-field"
-                placeholder="Shop Luan Huynh - Mua Bán Tài Khoản Game Giá Rẻ"
+                placeholder="Shop Pham Long - Mua Bán Tài Khoản Game Giá Rẻ"
               />
               <p className="text-slate-500 text-xs mt-1">Khuyến nghị: 50-60 ký tự</p>
             </div>
@@ -916,13 +916,13 @@ export default function Settings() {
               </h3>
               <div className="bg-white rounded-lg p-4 text-black">
                 <p className="text-blue-600 text-sm truncate">
-                  {seoForm.seoTitle || 'Shop Luan Huynh - Mua Bán Tài Khoản Game Giá Rẻ'}
+                  {seoForm.seoTitle || 'Shop Pham Long - Mua Bán Tài Khoản Game Giá Rẻ'}
                 </p>
                 <p className="text-green-700 text-xs truncate">
-                  luanfco.com
+                  phamlongfco.online
                 </p>
                 <p className="text-gray-600 text-sm line-clamp-2 mt-1">
-                  {seoForm.seoDescription || 'Cung cấp tài khoản game giá rẻ, uy tín, chất lượng. Mua bán tài khoản Liên Quân, PUBG, Free Fire, Genshin Impact.'}
+                  {seoForm.seoDescription || 'Cung cấp tài khoản game giá rẻ, uy tín, chất lượng. Mua bán tài khoản Liên Quân, PUBG, Free Fire, Genshin Impact và nhiều game khác.'}
                 </p>
               </div>
             </div>

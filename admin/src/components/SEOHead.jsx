@@ -10,9 +10,9 @@ export default function SEOHead({
   canonical,
   type = 'website',
 }) {
-  const siteName = 'Quản trị Shop Luan Huỳnh';
-  const defaultDescription = 'Trang quản trị Shop Luan Huỳnh - Quản lý tài khoản game, đơn hàng và người dùng.';
-  const defaultKeywords = 'quan tri, shop luan huynh, quan ly tai khoan game';
+  const siteName = 'Quản trị Shop Pham Long';
+  const defaultDescription = 'Trang quản trị Shop Pham Long - Quản lý tài khoản game, đơn hàng và người dùng.';
+  const defaultKeywords = 'quan tri, shop pham long, quan ly tai khoan game';
   const defaultOgImage = '/og-image.jpg';
 
   const fullTitle = title ? `${title} | ${siteName}` : siteName;

@@ -37,7 +37,7 @@ const Footer = () => {
                 />
               ) : (
                 <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-dark rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-xl">LH</span>
+                  <span className="text-white font-bold text-xl">PLL</span>
                 </div>
               )}
 

@@ -122,8 +122,13 @@ router.post('/', async (req, res) => {
   try {
     const { parentId, name, slug } = req.body;
 
+    // Sanitize: convert empty string to null
+    if (req.body.parentId !== undefined && req.body.parentId !== null && req.body.parentId.trim() === '') {
+      req.body.parentId = null;
+    }
+
     // Validate parentId if provided
-    if (parentId) {
+    if (req.body.parentId) {
       const parent = await Category.findById(parentId);
       if (!parent) {
         return res.status(400).json({ message: 'Danh mục cha không tồn tại' });
@@ -147,6 +152,11 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { parentId } = req.body;
+
+    // Sanitize: convert empty string to null (allow clearing parentId)
+    if (req.body.parentId !== undefined && req.body.parentId !== null && req.body.parentId.trim() === '') {
+      req.body.parentId = null;
+    }
 
     // Prevent circular reference: cannot set parentId to itself or to a descendant
     if (parentId !== undefined) {

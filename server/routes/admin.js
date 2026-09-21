@@ -214,6 +214,10 @@ router.get('/categories/:id', adminAuth, async (req, res) => {
 // Create category
 router.post('/categories', adminAuth, async (req, res) => {
   try {
+    // Sanitize: convert empty string to null
+    if (req.body.parentId !== undefined && req.body.parentId !== null && req.body.parentId.trim() === '') {
+      req.body.parentId = null;
+    }
     const category = new Category(req.body);
     await category.save();
     res.status(201).json(category);
@@ -225,6 +229,10 @@ router.post('/categories', adminAuth, async (req, res) => {
 // Update category
 router.put('/categories/:id', adminAuth, async (req, res) => {
   try {
+    // Sanitize: convert empty string to null (allow clearing parentId)
+    if (req.body.parentId !== undefined && req.body.parentId !== null && req.body.parentId.trim() === '') {
+      req.body.parentId = null;
+    }
     const category = await Category.findByIdAndUpdate(
       req.params.id,
       req.body,
@@ -1291,7 +1299,7 @@ router.post('/spin/rewards', adminAuth, async (req, res) => {
       stock
     } = req.body;
 
-    if (!rewardType || !['cash', 'account', 'voucher'].includes(rewardType)) {
+    if (!rewardType || !['cash', 'account', 'voucher', 'nothing'].includes(rewardType)) {
       return res.status(400).json({ message: 'RewardType không hợp lệ' });
     }
 
@@ -1367,6 +1375,11 @@ router.put('/spin/rewards/:id', adminAuth, async (req, res) => {
           message: `Tổng xác suất vượt quá 100%. Hiện tại: ${totalProb}%, thêm ${newProb}% sẽ = ${totalProb + newProb}%`
         });
       }
+    }
+
+    // Validate rewardType if provided
+    if (rewardType !== undefined && !['cash', 'account', 'voucher', 'nothing'].includes(rewardType)) {
+      return res.status(400).json({ message: 'RewardType không hợp lệ' });
     }
 
     // Update fields
