@@ -1,0 +1,19 @@
+User-agent: *
+Allow: /
+Allow: /shop
+Allow: /shop/*
+Allow: /account/*
+Disallow: /checkout
+Disallow: /profile
+Disallow: /deposit
+Disallow: /profile/*
+Disallow: /account/*/buy
+Disallow: /api/*
+Disallow: /uploads/*
+Disallow: /admin/*
+
+# Crawl-delay để tránh quá tải server
+Crawl-delay: 1
+
+# Sitemap
+Sitemap: https://phamlongfco.online/sitemap.xml

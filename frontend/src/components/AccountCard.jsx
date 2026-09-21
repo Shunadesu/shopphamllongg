@@ -1,0 +1,114 @@
+import { Link } from 'react-router-dom';
+import { getImageUrl } from '../utils/api';
+
+const AccountCard = ({ account, onBuyNow }) => {
+  return (
+    <div className="card hover:shadow-lg hover:shadow-primary/10 hover:-translate-y-1 transition-all duration-300 group relative">
+      {/* Image */}
+      <Link to={`/account/${account._id}`} className="block">
+        <div className="relative overflow-hidden rounded-lg mb-2">
+          <img
+            src={getImageUrl(account.images?.[0]) || '/placeholder.jpg'}
+            alt={account.title}
+            className="w-full h-32 object-cover group-hover:scale-110 transition-transform duration-300"
+          />
+          {account.status === 'sold' && (
+            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+              <span className="bg-red-500 text-white px-2 py-1 rounded text-xs font-semibold">
+                ĐÃ BÁN
+              </span>
+            </div>
+          )}
+        </div>
+      </Link>
+
+      {/* Content */}
+      <div className="flex flex-col">
+        <Link to={`/account/${account._id}`}>
+          <h3 className="bg-primary text-transparent p-2 text-sm font-semibold text-slate-900 dark:text-white mb-1 line-clamp-2 min-h-[1rem]  transition-colors">
+            {account.title}
+          </h3>
+        </Link>
+
+        {/* Account Code */}
+        {account.code && (
+          <div className="mb-1">
+            <span className="text-xs bg-slate-700/70 text-slate-300 px-2 py-0.5 rounded">
+              Mã: {account.code}
+            </span>
+          </div>
+        )}
+
+        {/* Rank / Server */}
+        {account.rank && (
+          <div className="flex items-center space-x-1 mb-1">
+            <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">
+              {account.rank}
+            </span>
+            {account.server && (
+              <span className="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded">
+                {account.server}
+              </span>
+            )}
+          </div>
+        )}
+
+        <p className="text-slate-400 text-xs line-clamp-2 min-h-[1rem]">
+          {account.description}
+        </p>
+
+        {/* Price section */}
+        <div className="mt-auto">
+          {/* Original price — struck through above */}
+          <div className="min-h-[1rem] mt-2">
+            {account.originalPrice > 0 && account.originalPrice > account.price && (
+              
+              <div className='text-slate-400 text-sm flex items-center gap-1'>
+                  <span className='hidden md:flex'>
+                    Giá gốc:
+                  </span>
+
+                  <span className="text-slate-400 line-through">
+                    {account.originalPrice.toLocaleString('vi-VN')}đ
+                  </span>
+              </div>
+              
+              
+            )}
+          </div>
+
+          {/* Sale price — orange */}
+          <div className='flex items-center gap-1 mb-2'>
+            <span className='hidden md:flex text-sm text-slate-400'>
+              Giá bán:
+            </span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-orange-400 to-amber-300 font-black text-xl">
+              {account.price.toLocaleString('vi-VN')}đ
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-1.5 min-h-[3.25rem]">
+            {account.status === 'available' && (
+              <>
+                <Link
+                  to={`/account/${account._id}`}
+                  className="btn-primary text-xs w-full py-1.5 text-center"
+                >
+                  Xem chi tiết
+                </Link>
+                <button
+                  onClick={(e) => onBuyNow?.(e, account)}
+                  className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors w-full"
+                >
+                  Mua ngay
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AccountCard;

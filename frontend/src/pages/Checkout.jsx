@@ -1,0 +1,211 @@
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import { useAuthStore } from '../store/authStore';
+import { useCartStore } from '../store/cartStore';
+import { useUserStore } from '../store/data/userStore';
+import { useOrderStore } from '../store/data/orderStore';
+import { useCart } from '../hooks/useCart';
+import { useUserProfile } from '../hooks/useUserProfile';
+import Loading from '../components/Loading';
+import { FiCheckCircle } from 'react-icons/fi';
+import SEOHead from '../components/SEOHead';
+import { getImageUrl } from '../utils/api';
+
+const Checkout = () => {
+  const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const { items, loading: cartLoading, mutating: checkoutPending, checkout } = useCart();
+  const { data: userData, refresh: refreshUser } = useUserProfile();
+
+  const handleCheckout = async () => {
+    try {
+      const data = await checkout();
+      toast.success('Thanh toán thành công!');
+
+      // Force refresh profile (bypass TTL) → Header.balance update ngay
+      await useUserStore.getState().fetchProfile(true);
+
+      // Invalidate orders/purchased cache
+      useOrderStore.getState().invalidateOrders();
+
+      navigate(`/profile/orders/${data.order._id}`);
+    } catch (error) {
+      if (error?.__skipped || error.response?.status === 401) {
+        toast.error('Vui lòng đăng nhập để thanh toán');
+      } else {
+        toast.error(error.response?.data?.message || 'Thanh toán thất bại');
+      }
+    }
+  };
+
+  if (cartLoading) return <Loading />;
+  const totalAmount = items.reduce((sum, item) => sum + item.price, 0);
+  const balance = userData?.balance || 0;
+  const insufficientBalance = balance < totalAmount;
+
+  if (items.length === 0) {
+    return (
+      <div className="min-h-screen pt-16 pb-6">
+        <SEOHead
+          title="Giỏ hàng trống"
+          description="Giỏ hàng của bạn đang trống. Hãy tiếp tục mua sắm tài khoản game chất lượng cao tại Shop Luan Huỳnh."
+          type="website"
+        />
+        <div className="container-custom">
+          <div className="card text-center py-20">
+            <p className="text-slate-500 dark:text-slate-400 text-lg mb-6">Giỏ hàng trống</p>
+            <button onClick={() => navigate('/shop')} className="btn-primary">
+              Tiếp tục mua sắm
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen pt-16 pb-6">
+      <SEOHead
+        title="Thanh toán"
+        description={`Thanh toán ${items.length} tài khoản game với tổng cộng ${totalAmount.toLocaleString('vi-VN')}đ tại Shop Luan Huỳnh.`}
+        type="website"
+      />
+      <div className="container-custom">
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-8">Thanh toán</h1>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
+          {/* Order Items */}
+          <div className="lg:col-span-2">
+            <div className="card mb-6">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Đơn hàng của bạn</h2>
+              <div className="space-y-2">
+                {items.map((item) => (
+                  <div key={item._id} className="flex gap-2 pb-2 border-b border-slate-200 dark:border-slate-700 last:border-0">
+                    <img
+                      src={getImageUrl(item.images?.[0]) || '/placeholder.jpg'}
+                      alt={item.title}
+                      className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
+                    />
+                    <div className="flex-grow">
+                      <h3 className="text-slate-900 dark:text-white font-semibold mb-1 line-clamp-2">
+                        {item.title}
+                      </h3>
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {item.rank && (
+                          <span className="bg-primary/20 text-primary px-2 py-1 rounded text-xs">
+                            {item.rank}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-primary font-bold">
+                        {item.price.toLocaleString('vi-VN')}đ
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Payment Method */}
+            <div className="card">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Phương thức thanh toán</h2>
+              <div className="bg-slate-100 dark:bg-slate-800 border border-primary rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <FiCheckCircle className="w-6 h-6 text-primary" />
+                    <div>
+                      <p className="text-slate-900 dark:text-white font-semibold">Số dư tài khoản</p>
+                      <p className="text-slate-500 dark:text-slate-400 text-sm">
+                        Số dư hiện tại: <span className="text-primary font-semibold">
+                          {balance.toLocaleString('vi-VN')}đ
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Summary */}
+          <div className="lg:col-span-1">
+            <div className="card sticky top-24">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6">Tóm tắt đơn hàng</h2>
+
+              <div className="space-y-2 mb-2">
+                <div className="flex justify-between text-slate-500 dark:text-slate-400">
+                  <span>Số lượng sản phẩm:</span>
+                  <span>{items.length}</span>
+                </div>
+                <div className="flex justify-between text-slate-500 dark:text-slate-400">
+                  <span>Tổng tiền:</span>
+                  <span>{totalAmount.toLocaleString('vi-VN')}đ</span>
+                </div>
+                <div className="border-t border-slate-200 dark:border-slate-700 pt-3 flex justify-between text-slate-900 dark:text-white font-bold text-xl">
+                  <span>Thanh toán:</span>
+                  <span className="text-price font-bold text-xl">{totalAmount.toLocaleString('vi-VN')}đ</span>
+                </div>
+              </div>
+
+              {/* Balance Info */}
+              <div className={`p-4 rounded-lg mb-6 ${
+                insufficientBalance ? 'bg-red-500/20 border border-red-500' : 'bg-green-500/20 border border-green-500'
+              }`}>
+                <p className={insufficientBalance ? 'text-red-400' : 'text-green-400'}>
+                  Số dư hiện tại: {balance.toLocaleString('vi-VN')}đ
+                </p>
+                {insufficientBalance && (
+                  <>
+                    <p className="text-red-400 text-sm mt-1">
+                      Thiếu: {(totalAmount - balance).toLocaleString('vi-VN')}đ
+                    </p>
+                    <p className="text-red-400 text-sm mt-2">
+                      ⚠️ Số dư không đủ để thanh toán
+                    </p>
+                  </>
+                )}
+                {!insufficientBalance && (
+                  <p className="text-green-400 text-sm mt-1">
+                    Sau thanh toán: {(balance - totalAmount).toLocaleString('vi-VN')}đ
+                  </p>
+                )}
+              </div>
+
+              {insufficientBalance ? (
+                <button
+                  onClick={() => navigate('/deposit')}
+                  className="btn-primary w-full mb-3"
+                >
+                  Nạp tiền
+                </button>
+              ) : (
+                <button
+                  onClick={handleCheckout}
+                  disabled={checkoutPending}
+                  className="btn-primary w-full mb-3"
+                >
+                  {checkoutPending ? 'Đang xử lý...' : 'Xác nhận thanh toán'}
+                </button>
+              )}
+
+              <button
+                onClick={() => navigate('/cart')}
+                className="btn-secondary w-full"
+              >
+                Quay lại giỏ hàng
+              </button>
+
+              <div className="mt-6 p-4 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                <p className="text-slate-500 dark:text-slate-400 text-sm">
+                  ℹ️ Sau khi thanh toán thành công, thông tin tài khoản sẽ được hiển thị trong chi tiết đơn hàng.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Checkout;
