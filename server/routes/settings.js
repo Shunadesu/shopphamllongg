@@ -42,11 +42,12 @@ router.get('/logo-footer', async (req, res) => {
   }
 });
 
-// Get active sliders
+// Get active sliders — structured as left (Swiper) and right (image/YouTube)
 router.get('/sliders', async (req, res) => {
   try {
-    const sliders = await Slider.find({ isActive: true }).sort({ order: 1 });
-    res.json(sliders);
+    const leftSliders = await Slider.find({ isActive: true, slot: 'left' }).sort({ order: 1 });
+    const rightBanner = await Slider.findOne({ isActive: true, slot: 'right' }).sort({ order: 1 });
+    res.json({ leftSliders, rightBanner });
   } catch (error) {
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }

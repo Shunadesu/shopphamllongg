@@ -77,12 +77,12 @@ const AccountCard = ({ account, onBuyNow }) => {
             )}
           </div>
 
-          {/* Sale price — orange */}
+          {/* Sale price — blue */}
           <div className='flex items-center gap-1 mb-2'>
             <span className='hidden md:flex text-sm text-slate-400'>
               Giá bán:
             </span>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-orange-400 to-amber-300 font-black text-xl">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-sky-400 to-sky-200 font-black text-xl">
               {account.price.toLocaleString('vi-VN')}đ
             </span>
           </div>
@@ -98,7 +98,7 @@ const AccountCard = ({ account, onBuyNow }) => {
                 </Link>
                 <button
                   onClick={(e) => onBuyNow?.(e, account)}
-                  className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors w-full"
+                  className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors w-full"
                 >
                   Mua ngay
                 </button>

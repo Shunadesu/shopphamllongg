@@ -8,7 +8,7 @@ const WheelSpinner = ({ data, prizeNumber, onStopSpinning, mustStartSpinning }) 
       animate={{ opacity: 1, scale: 1 }}
       className="relative w-full max-w-[500px] mx-auto"
     >
-      <div className="absolute inset-0 bg-gradient-to-br from-sky-500/20 to-orange-500/20 rounded-full blur-2xl" />
+      <div className="absolute inset-0 bg-gradient-to-br from-sky-500/20 to-blue-500/20 rounded-full blur-2xl" />
       
       <div className="relative">
         <Wheel
@@ -37,7 +37,7 @@ const WheelSpinner = ({ data, prizeNumber, onStopSpinning, mustStartSpinning }) 
       </div>
 
       {/* Center decoration */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full shadow-lg flex items-center justify-center pointer-events-none">
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full shadow-lg flex items-center justify-center pointer-events-none">
         <div className="w-12 h-12 bg-slate-900 rounded-full flex items-center justify-center">
           <span className="text-2xl">🎰</span>
         </div>

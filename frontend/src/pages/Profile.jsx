@@ -223,7 +223,7 @@ const DefaultProfileView = ({ user, isLoading, activeTab, setActiveTab, navigate
           <div className="relative shrink-0">
             <div
               className="w-20 h-20 rounded-full flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, #FF6D00, #FFAB40)' }}
+              style={{ background: 'linear-gradient(135deg, #3B82F6, #93C5FD)' }}
             >
               <FiUser className="w-10 h-10 text-white" />
             </div>
@@ -301,7 +301,7 @@ const DefaultProfileView = ({ user, isLoading, activeTab, setActiveTab, navigate
               <div
                 className="rounded-2xl p-[2px]"
                 style={{
-                  background: 'linear-gradient(90deg, #D84315, #FF6D00, #FFAB40, #D84315)',
+                  background: 'linear-gradient(90deg, #1D4ED8, #3B82F6, #93C5FD, #1D4ED8)',
                   backgroundSize: '300% 100%',
                   animation: 'border-flow 2s linear infinite',
                 }}

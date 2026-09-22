@@ -29,9 +29,9 @@ export default function BuyNowModal({ isOpen, onClose, account, onConfirm, loadi
           </div>
 
           {/* Warning */}
-          <div className="flex gap-3 p-4 bg-orange-50 border border-orange-200 rounded-xl">
-            <FiAlertCircle className="w-5 h-5 text-orange-500 flex-shrink-0" />
-            <p className="text-sm text-orange-800">
+          <div className="flex gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+            <FiAlertCircle className="w-5 h-5 text-blue-500 flex-shrink-0" />
+            <p className="text-sm text-blue-800">
               Bạn có chắc chắn muốn mua tài khoản này?
             </p>
           </div>

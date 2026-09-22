@@ -219,7 +219,7 @@ export const ProfileSkeleton = () => (
       </div>
 
       {/* Info Card with animated border */}
-      <div className="rounded-2xl p-[2px]" style={{ background: 'linear-gradient(90deg, #D84315, #FF6D00, #FFAB40, #D84315)', backgroundSize: '300% 100%', animation: 'border-flow 2s linear infinite' }}>
+      <div className="rounded-2xl p-[2px]" style={{ background: 'linear-gradient(90deg, #1D4ED8, #3B82F6, #93C5FD, #1D4ED8)', backgroundSize: '300% 100%', animation: 'border-flow 2s linear infinite' }}>
         <div className="bg-white dark:bg-dark-light rounded-[14px] p-6 space-y-4">
           {[1, 2, 3, 4, 5].map((i) => (
             <div key={i} className="flex items-start gap-3 pb-3 border-b border-slate-200 dark:border-slate-700 last:border-0">

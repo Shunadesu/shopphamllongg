@@ -26,6 +26,23 @@ const sliderSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  // Vị trí hiển thị: 'left' = Swiper nhiều ảnh (33%), 'right' = 1 ảnh/YouTube (67%)
+  slot: {
+    type: String,
+    enum: ['left', 'right'],
+    default: 'left'
+  },
+  // Loại nội dung cột phải: 'image' hoặc 'youtube'
+  type: {
+    type: String,
+    enum: ['image', 'youtube'],
+    default: 'image'
+  },
+  // URL YouTube cho cột phải (khi type = 'youtube')
+  youtubeUrl: {
+    type: String,
+    default: ''
   }
 }, {
   timestamps: true

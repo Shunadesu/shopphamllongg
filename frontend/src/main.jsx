@@ -34,7 +34,7 @@ function ThemedToaster() {
         },
         success: {
           iconTheme: {
-            primary: '#D84315',
+            primary: '#3B82F6',
             secondary: isDark ? '#F8FAFC' : '#FFFFFF',
           },
         },

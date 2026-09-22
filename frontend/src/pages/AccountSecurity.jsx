@@ -74,14 +74,14 @@ const AccountSecurity = () => {
 
           {/* Bước 2 */}
           <div className="mb-4">
-            <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 rounded-xl border border-orange-200 dark:border-orange-800 p-5">
+            <div className="bg-gradient-to-br from-blue-50 to-sky-50 dark:from-blue-950/20 dark:to-sky-950/20 rounded-xl border border-blue-200 dark:border-blue-800 p-5">
               <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-3">
                 Bước 2: Thay Đổi Mật Khẩu Để Đảm Bảo An Toàn
               </h2>
               <ul className="space-y-2">
                 {securityNotes.map((note, index) => (
                   <li key={index} className="flex items-start gap-2">
-                    <span className="text-orange-600 dark:text-orange-500 font-bold flex-shrink-0">🔹</span>
+                    <span className="text-blue-600 dark:text-blue-500 font-bold flex-shrink-0">🔹</span>
                     <span className="text-sm text-slate-700 dark:text-slate-300">{note}</span>
                   </li>
                 ))}

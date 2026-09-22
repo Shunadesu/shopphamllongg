@@ -23,7 +23,7 @@ const SpinWheel = () => {
   const wheelData = config?.map((reward) => ({
     option: reward.label,
     style: { 
-      backgroundColor: reward.color || '#FF6D00',
+      backgroundColor: reward.color || '#3B82F6',
       textColor: '#FFFFFF'
     },
     _id: reward._id,
@@ -240,7 +240,7 @@ const SpinWheel = () => {
                   prizeNumber={prizeNumber}
                   data={wheelData}
                   onStopSpinning={handleStopSpinning}
-                  backgroundColors={['#FF6D00', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899']}
+                  backgroundColors={['#60A5FA', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899']}
                   textColors={['#FFFFFF']}
                   outerBorderColor="#1E293B"
                   outerBorderWidth={6}
@@ -342,7 +342,7 @@ const SpinWheel = () => {
                   </div>
                 )}
                 {result.type === 'voucher' && (
-                  <div className="w-16 h-16 mx-auto bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center">
+                  <div className="w-16 h-16 mx-auto bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
                     <GiTicket className="w-9 h-9 text-white" />
                   </div>
                 )}
@@ -373,9 +373,9 @@ const SpinWheel = () => {
               )}
 
               {result.type === 'voucher' && result.voucherCode && (
-                <div className="bg-orange-50 dark:bg-orange-900/20 border-2 border-orange-500 rounded-xl p-3 mb-3">
+                <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-500 rounded-xl p-3 mb-3">
                   <p className="text-xs text-slate-600 dark:text-slate-400 mb-1">Mã giảm giá</p>
-                  <p className="text-xl font-bold text-orange-600 dark:text-orange-400 font-mono">
+                  <p className="text-xl font-bold text-blue-600 dark:text-blue-400 font-mono">
                     {result.voucherCode}
                   </p>
                   <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">

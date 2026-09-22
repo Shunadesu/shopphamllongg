@@ -271,7 +271,7 @@ const AccountDetail = ({ onOpenAuth }) => {
             <div className="relative bg-slate-100 dark:bg-slate-800/80 rounded p-4 border border-slate-200 dark:border-slate-700">
               {/* Pill badge — float top-right */}
               {discountPct && (
-                <div className="absolute -top-2 -right-2 bg-gradient-to-r from-primary to-orange-400 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg shadow-primary/30">
+                <div className="absolute -top-2 -right-2 bg-gradient-to-r from-primary to-sky-400 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg shadow-primary/30">
                   -{discountPct}%
                 </div>
               )}
@@ -288,7 +288,7 @@ const AccountDetail = ({ onOpenAuth }) => {
               {/* Sale price — prominent */}
               <div className="text-center">
                 <p className="text-slate-500 dark:text-slate-400 text-xs mb-0.5">Giá bán</p>
-                <p className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-orange-400 to-amber-300 font-black text-3xl leading-none">
+                <p className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-sky-400 to-sky-200 font-black text-3xl leading-none">
                   {account.price.toLocaleString('vi-VN')}đ
                 </p>
               </div>

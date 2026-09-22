@@ -24,7 +24,7 @@ const SpinResultModal = ({ isOpen, onClose, result }) => {
       case 'account':
         return <FaGamepad className="text-6xl text-sky-400" />;
       case 'voucher':
-        return <FaTicketAlt className="text-6xl text-orange-400" />;
+        return <FaTicketAlt className="text-6xl text-blue-400" />;
       default:
         return <FaGift className="text-6xl text-slate-400" />;
     }
@@ -80,7 +80,7 @@ const SpinResultModal = ({ isOpen, onClose, result }) => {
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.3 }}
-              className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-orange-400"
+              className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-sky-400"
             >
               {result.type === 'nothing' ? 'Chúc bạn may mắn lần sau!' : 'Chúc mừng!'}
             </motion.h2>
@@ -102,9 +102,9 @@ const SpinResultModal = ({ isOpen, onClose, result }) => {
               )}
 
               {result.type === 'voucher' && result.voucherCode && (
-                <div className="mt-4 p-3 bg-slate-900 rounded-lg border border-orange-500/30">
+                <div className="mt-4 p-3 bg-slate-900 rounded-lg border border-blue-500/30">
                   <p className="text-xs text-slate-400 mb-1">Mã giảm giá</p>
-                  <p className="text-lg font-mono font-bold text-orange-400">{result.voucherCode}</p>
+                  <p className="text-lg font-mono font-bold text-blue-400">{result.voucherCode}</p>
                   <p className="text-xs text-slate-400 mt-1">
                     Giảm {result.voucherDiscount}% cho đơn hàng tiếp theo
                   </p>
@@ -164,7 +164,7 @@ const SpinResultModal = ({ isOpen, onClose, result }) => {
               ) : (
                 <button
                   onClick={() => window.location.href = '/shop'}
-                  className="w-full px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg hover:shadow-orange-500/50"
+                  className="w-full px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg hover:shadow-blue-500/50"
                 >
                   Mua thêm để nhận lượt quay
                 </button>

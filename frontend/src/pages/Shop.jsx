@@ -189,7 +189,7 @@ const SubcategorySection = ({ parentCategory, subcategories, onSelectSubcategory
                   className="w-full h-24 object-cover rounded-lg mb-3"
                 />
               ) : (
-                <div className="w-full h-20 rounded-lg mb-3 bg-gradient-to-br from-orange-700 via-orange-600 to-amber-500 flex items-center justify-center mx-auto">
+                <div className="w-full h-20 rounded-lg mb-3 bg-gradient-to-br from-blue-700 via-blue-600 to-sky-300 flex items-center justify-center mx-auto">
                   <span className="text-white text-xl font-bold opacity-50">
                     {subcategory.name.charAt(0)}
                   </span>

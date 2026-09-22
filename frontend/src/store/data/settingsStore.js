@@ -12,7 +12,7 @@ export const useSettingsStore = create(
     (set, get) => ({
       settings: null,
       socialLinks: [],
-      sliders: [],
+      sliders: { leftSliders: [], rightBanner: null },
       notifications: [],
       loading: initialLoading,
       error: null,
@@ -65,14 +65,14 @@ export const useSettingsStore = create(
 
       fetchSliders: async (force = false) => {
         const state = get();
-        if (!force && state.sliders.length > 0 && !state.isStale('sliders')) {
+        if (!force && state.sliders.leftSliders?.length > 0 && !state.isStale('sliders')) {
           return state.sliders;
         }
         set((s) => ({ loading: { ...s.loading, sliders: true } }));
         try {
           const res = await api.get('/settings/sliders');
           set((s) => ({
-            sliders: res.data || [],
+            sliders: res.data || { leftSliders: [], rightBanner: null },
             lastFetched: { ...s.lastFetched, sliders: Date.now() },
             loading: { ...s.loading, sliders: false },
           }));
@@ -106,7 +106,7 @@ export const useSettingsStore = create(
       reset: () => set({
         settings: null,
         socialLinks: [],
-        sliders: [],
+        sliders: { leftSliders: [], rightBanner: null },
         notifications: [],
         loading: initialLoading,
         error: null,
@@ -115,12 +115,12 @@ export const useSettingsStore = create(
     }),
     {
       name: 'settings-storage',
-      version: 3,
+      version: 4,
       migrate: (persistedState, fromVersion) => {
-        // Clear cached sliders on version migration to get new width field
+        // Clear cached sliders on version migration to get new slot/type fields
         if (!persistedState) return persistedState;
-        if (fromVersion < 3) {
-          persistedState.sliders = [];
+        if (fromVersion < 4) {
+          persistedState.sliders = { leftSliders: [], rightBanner: null };
           persistedState.lastFetched = { ...(persistedState.lastFetched || {}), sliders: 0 };
         }
         return persistedState;

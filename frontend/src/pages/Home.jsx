@@ -8,6 +8,11 @@ import { AccountCardSkeleton } from '../components/SkeletonLoader';
 import BuyNowModal from '../components/BuyNowModal';
 import { useAuthStore } from '../store/authStore';
 import api, { getImageUrl } from '../utils/api';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Autoplay, Pagination } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/pagination';
+import { toYoutubeEmbedUrl } from '../utils/banner';
 import toast from 'react-hot-toast';
 
 // Skeleton loader components
@@ -56,7 +61,7 @@ const SubcategoryGrid = ({ parentCategory, subcategories, onSelectSubcategory, a
                   className="w-full h-auto object-cover rounded-lg mb-2"
                 />
               ) : (
-                <div className="w-full h-24 rounded-t-lg mb-2 bg-gradient-to-br from-orange-700 via-orange-600 to-amber-500 flex items-center justify-center">
+                <div className="w-full h-24 rounded-t-lg mb-2 bg-gradient-to-br from-blue-700 via-blue-600 to-sky-300 flex items-center justify-center">
                   <span className="text-white text-xl font-bold opacity-50">
                     {subcategory.name.charAt(0)}
                   </span>
@@ -438,77 +443,80 @@ const Home = () => {
         keywords="mua tai khoan fc online, fco, mua tai khoan fifa online 4, tai khoan fo4 gia re, ban tai khoan fc online, fifa online 4 gia re, fc online uy tin, tai khoan fo4 vpl, bp trang"
         type="website"
       />
-      {/* Hero Section - Banner 2 cột */}
+      {/* Hero Section - Banner: Cột trái Swiper (33%) + Cột phải Ảnh/YouTube (67%) */}
       <section>
-        {sliders && sliders.length > 0 ? (
-          (() => {
-            // Lấy 2 banner đầu tiên: [0] = trái, [1] = phải
-            const leftBanner = sliders[0];
-            const rightBanner = sliders[1] || sliders[0];
-
-            // Chiều rộng cột trái từ banner đầu tiên (default 33%)
-            const leftWidth = leftBanner.width ?? 33;
-            const rightWidth = 100 - leftWidth;
-
-            return (
-              <div className="container-custom">
-                {/* Mobile/Tablet: 1 cột (trên dưới) | Desktop: 2 cột theo tỉ lệ banner */}
-                <div
-                  className="grid gap-1 rounded-md overflow-hidden banner-grid"
-                  style={{
-                    gridTemplateColumns: '1fr',
-                  }}
+        {sliders?.leftSliders?.length > 0 || sliders?.rightBanner ? (
+          <div className="container-custom">
+            <div
+              className="grid gap-1 rounded-md overflow-hidden banner-grid"
+              style={{ gridTemplateColumns: '33fr 67fr' }}
+            >
+              {/* Cột Trái — Swiper nhiều ảnh */}
+              <div className="w-full overflow-hidden rounded-md">
+                <Swiper
+                  modules={[Autoplay, Pagination]}
+                  autoplay={{ delay: 4000, disableOnInteraction: false }}
+                  pagination={{ clickable: true }}
+                  loop={sliders.leftSliders.length > 1}
+                  className="banner-swiper h-full [&_.swiper-pagination-bullet-active]:!bg-primary [&_.swiper-pagination-bullet]:!bg-white/60"
                 >
-                  <style>{`
-                    @media (min-width: 768px) {
-                      .banner-grid {
-                        grid-template-columns: ${leftWidth}fr ${rightWidth}fr !important;
-                      }
-                    }
-                  `}</style>
-                  {/* Banner Trái */}
-                  <div className="w-full overflow-hidden rounded-md">
-                    {leftBanner.link ? (
-                      <a href={leftBanner.link} target="_blank" rel="noopener noreferrer">
+                  {sliders.leftSliders.map((slide) => (
+                    <SwiperSlide key={slide._id} className="!h-auto">
+                      {slide.link ? (
+                        <a href={slide.link} target="_blank" rel="noopener noreferrer" className="block h-full">
+                          <img
+                            src={getImageUrl(slide.image)}
+                            alt={slide.title || 'Banner trái'}
+                            className="w-full h-full object-cover"
+                          />
+                        </a>
+                      ) : (
                         <img
-                          src={getImageUrl(leftBanner.image)}
-                          alt={leftBanner.title || 'Banner trái'}
+                          src={getImageUrl(slide.image)}
+                          alt={slide.title || 'Banner trái'}
                           className="w-full h-full object-cover"
                         />
-                      </a>
-                    ) : (
-                      <img
-                        src={getImageUrl(leftBanner.image)}
-                        alt={leftBanner.title || 'Banner trái'}
-                        className="w-full h-full object-cover"
-                      />
-                    )}
-                  </div>
-
-                  {/* Banner Phải */}
-                  <div className="relative w-full overflow-hidden rounded-md">
-                    {rightBanner.link ? (
-                      <a href={rightBanner.link} target="_blank" rel="noopener noreferrer">
-                        <img
-                          src={getImageUrl(rightBanner.image)}
-                          alt={rightBanner.title || 'Banner phải'}
-                          className="w-full h-full object-cover"
-                        />
-                      </a>
-                    ) : (
-                      <img
-                        src={getImageUrl(rightBanner.image)}
-                        alt={rightBanner.title || 'Banner phải'}
-                        className="w-full h-full object-cover"
-                      />
-                    )}
-                  </div>
-                </div>
+                      )}
+                    </SwiperSlide>
+                  ))}
+                </Swiper>
               </div>
-            );
-          })()
+
+              {/* Cột Phải — Ảnh hoặc YouTube */}
+              <div className="relative w-full overflow-hidden rounded-md">
+                {sliders.rightBanner?.type === 'youtube' && toYoutubeEmbedUrl(sliders.rightBanner.youtubeUrl) ? (
+                  <iframe
+                    src={toYoutubeEmbedUrl(sliders.rightBanner.youtubeUrl)}
+                    title={sliders.rightBanner.title || 'Video YouTube'}
+                    className="w-full h-full"
+                    style={{ aspectRatio: '16/9' }}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : sliders.rightBanner?.image ? (
+                  sliders.rightBanner.link ? (
+                    <a href={sliders.rightBanner.link} target="_blank" rel="noopener noreferrer" className="block h-full">
+                      <img
+                        src={getImageUrl(sliders.rightBanner.image)}
+                        alt={sliders.rightBanner.title || 'Banner phải'}
+                        className="w-full h-full object-cover"
+                      />
+                    </a>
+                  ) : (
+                    <img
+                      src={getImageUrl(sliders.rightBanner.image)}
+                      alt={sliders.rightBanner.title || 'Banner phải'}
+                      className="w-full h-full object-cover"
+                    />
+                  )
+                ) : (
+                  /* Fallback gradient khi chưa có banner phải */
+                  <div className="w-full h-full bg-gradient-to-br from-primary-dark via-primary to-accent min-h-[200px]" />
+                )}
+              </div>
+            </div>
+          </div>
         ) : (
-          /* Fallback */
           <div className="container-custom">
             <div className="w-full bg-gradient-to-br from-primary-dark via-primary to-accent rounded-md" style={{ minHeight: '200px' }} />
           </div>
@@ -582,7 +590,7 @@ const Home = () => {
                           className="w-full h-40 object-cover rounded-lg mb-2"
                         />
                       ) : (
-                        <div className="w-full h-32 rounded-t-lg mb-2 bg-gradient-to-br from-orange-700 via-orange-600 to-amber-500 flex items-center justify-center">
+                        <div className="w-full h-32 rounded-t-lg mb-2 bg-gradient-to-br from-blue-700 via-blue-600 to-sky-300 flex items-center justify-center">
                           <span className="text-white text-2xl font-bold opacity-50">
                             {category.name.charAt(0)}
                           </span>

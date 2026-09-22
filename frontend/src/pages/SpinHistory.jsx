@@ -41,7 +41,7 @@ const SpinHistory = () => {
       case 'account':
         return <GiTrophy className="w-6 h-6 text-purple-500" />;
       case 'voucher':
-        return <GiTicket className="w-6 h-6 text-orange-500" />;
+        return <GiTicket className="w-6 h-6 text-blue-500" />;
       default:
         return <span className="text-2xl">😢</span>;
     }
@@ -54,7 +54,7 @@ const SpinHistory = () => {
       case 'account':
         return <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded text-xs font-semibold">🎮 Tài khoản</span>;
       case 'voucher':
-        return <span className="px-2 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded text-xs font-semibold">🎫 Voucher</span>;
+        return <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded text-xs font-semibold">🎫 Voucher</span>;
       default:
         return <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded text-xs font-semibold">❌ Chúc bạn may mắn</span>;
     }
@@ -184,7 +184,7 @@ const SpinHistory = () => {
 
           <div className="bg-white dark:bg-dark-light border border-slate-200 dark:border-slate-700 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-1">
-              <FiGift className="w-5 h-5 text-orange-500" />
+              <FiGift className="w-5 h-5 text-blue-500" />
               <p className="text-xs text-slate-500 dark:text-slate-400">Voucher trúng</p>
             </div>
             <p className="text-2xl font-bold text-slate-800 dark:text-slate-200">
@@ -289,7 +289,7 @@ const SpinHistory = () => {
                           {item.rewardType === 'voucher' && item.voucherCode && (
                             <div className="mt-1">
                               <p className="text-sm text-slate-600 dark:text-slate-400">
-                                Mã: <span className="font-mono font-bold text-orange-600 dark:text-orange-400">{item.voucherCode}</span>
+                                Mã: <span className="font-mono font-bold text-blue-600 dark:text-blue-400">{item.voucherCode}</span>
                               </p>
                               <p className="text-sm text-slate-600 dark:text-slate-400">
                                 Giảm {item.voucherDiscount}%
