@@ -5,7 +5,7 @@ import { useAuthStore } from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
 import { useCategories, useAccountList } from '../hooks';
 import { ShopSkeleton, AccountCardSkeleton } from '../components/SkeletonLoader';
-import { FiSearch, FiTag, FiShoppingCart, FiZap, FiChevronRight, FiChevronLeft } from 'react-icons/fi';
+import { FiSearch, FiTag, FiShoppingCart, FiZap, FiChevronRight, FiChevronLeft, FiRefreshCw } from 'react-icons/fi';
 import SEOHead from '../components/SEOHead';
 import BuyNowModal from '../components/BuyNowModal';
 import api, { getImageUrl } from '../utils/api';
@@ -236,8 +236,17 @@ const Shop = () => {
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [buyingNow, setBuyingNow] = useState(false);
 
-  // Fetch categories
-  const { data: categories } = useCategories();
+  // Fetch categories - kèm refresh để user có thể ép làm mới khi cần
+  const { data: categories, refresh: refreshCategories, loading: categoriesLoading } = useCategories();
+
+  const handleRefreshCategories = async () => {
+    try {
+      await refreshCategories();
+      toast.success('Đã làm mới danh mục');
+    } catch (err) {
+      toast.error('Không thể làm mới danh mục');
+    }
+  };
 
   // Find selected category object
   const selectedCategory = categories?.find(c => c._id === selectedCategoryId);
@@ -466,12 +475,25 @@ const Shop = () => {
 
       {/* Page Title */}
       <div className="container-custom mb-6">
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-          {getPageTitle()}
-        </h1>
-        <p className="text-slate-600 dark:text-slate-400 mt-1">
-          {filteredAccounts.length} tài khoản được tìm thấy
-        </p>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
+              {getPageTitle()}
+            </h1>
+            <p className="text-slate-600 dark:text-slate-400 mt-1">
+              {filteredAccounts.length} tài khoản được tìm thấy
+            </p>
+          </div>
+          <button
+            onClick={handleRefreshCategories}
+            disabled={categoriesLoading}
+            className="btn-secondary text-sm flex items-center gap-2 disabled:opacity-50"
+            title="Làm mới danh mục để xem cập nhật mới nhất"
+          >
+            <FiRefreshCw className={`w-4 h-4 ${categoriesLoading ? 'animate-spin' : ''}`} />
+            <span>Làm mới</span>
+          </button>
+        </div>
       </div>
 
       {/* Filters Bar */}

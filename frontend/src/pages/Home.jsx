@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSliders, useCategories, useAccountList, useHasSubcategories } from '../hooks';
-import { FiChevronRight, FiChevronLeft, FiSearch, FiX } from 'react-icons/fi';
+import { FiChevronRight, FiChevronLeft, FiSearch, FiX, FiRefreshCw } from 'react-icons/fi';
 import SEOHead from '../components/SEOHead';
 import AccountCard from '../components/AccountCard';
 import { AccountCardSkeleton } from '../components/SkeletonLoader';
@@ -239,7 +239,17 @@ const Home = () => {
   const { data: sliders } = useSliders();
 
   // Fetch categories
-  const { data: categories, loading: categoriesLoading } = useCategories();
+  const { data: categories, loading: categoriesLoading, refresh: refreshCategories } = useCategories();
+
+  // Manual refresh handler cho danh mục - dùng khi user muốn xem danh mục mới ngay
+  const handleRefreshCategories = async () => {
+    try {
+      await refreshCategories();
+      toast.success('Đã làm mới danh mục');
+    } catch (err) {
+      toast.error('Không thể làm mới danh mục');
+    }
+  };
 
   // Fetch all accounts (for grouping by category)
   const { accounts: allAccounts, loading: accountsLoading } = useAccountList({ limit: 100 });
@@ -533,10 +543,21 @@ const Home = () => {
         {/* Categories */}
         <section className="py-2">
           <div className="container-custom">
-            <div className="section-title-banner">
-              <span className="section-title-banner__text">
-                <span className="accent">Danh mục</span> Game
-              </span>
+            <div className="flex items-center justify-between mb-2">
+              <div className="section-title-banner flex-1">
+                <span className="section-title-banner__text">
+                  <span className="accent">Danh mục</span> Game
+                </span>
+              </div>
+              <button
+                onClick={handleRefreshCategories}
+                disabled={categoriesLoading}
+                className="text-xs text-slate-500 hover:text-primary dark:text-slate-400 dark:hover:text-primary flex items-center gap-1 transition-colors disabled:opacity-50"
+                title="Làm mới danh mục để xem cập nhật mới nhất"
+              >
+                <FiRefreshCw className={`w-3 h-3 ${categoriesLoading ? 'animate-spin' : ''}`} />
+                <span>Làm mới</span>
+              </button>
             </div>
 
             {/* "Tất cả" button - reset to default view */}

@@ -2,7 +2,9 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import api from '../../utils/api';
 
-const TTL = 15 * 60 * 1000; // 15 minutes
+// TTL giảm từ 15 phút xuống 2 phút để danh mục admin thay đổi nhanh chóng được phản ánh ở frontend.
+// Kết hợp với refetchOnWindowFocus trong useCatalog.js để đảm bảo UX tốt nhất.
+const TTL = 2 * 60 * 1000; // 2 minutes
 
 export const useCatalogStore = create(
   persist(
@@ -16,6 +18,10 @@ export const useCatalogStore = create(
         const ts = get().lastFetched;
         return !ts || Date.now() - ts > TTL;
       },
+
+      // Đánh dấu cache là stale để lần đọc sau tự refetch
+      // (dùng khi admin thay đổi danh mục hoặc component muốn ép refetch)
+      markStale: () => set({ lastFetched: 0 }),
 
       fetchCategories: async (force = false) => {
         const state = get();
