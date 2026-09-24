@@ -54,6 +54,15 @@ function App() {
   const applyDefaultTheme = useThemeStore((s) => s.applyDefault);
   const settings = useSettingsStore((s) => s.settings);
 
+  // Dọn cache catalog cũ trong localStorage (phiên bản trước dùng persist).
+  // Chỉ chạy 1 lần: xóa key cũ và đánh dấu đã dọn để không lặp lại.
+  useEffect(() => {
+    if (!localStorage.getItem('catalog-storage-cleaned-v1')) {
+      localStorage.removeItem('catalog-storage');
+      localStorage.setItem('catalog-storage-cleaned-v1', '1');
+    }
+  }, []);
+
   // Drawer state
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
