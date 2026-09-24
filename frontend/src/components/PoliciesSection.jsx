@@ -287,11 +287,10 @@ export default function PoliciesSection({ user }) {
 
 const StatCard = ({ icon: Icon, label, value, subtext, color }) => {
   const colorMap = {
-    blue: 'bg-blue-600',
+    blue: 'bg-primary',
     red: 'bg-red-600',
     green: 'bg-green-600',
     purple: 'bg-purple-600',
-    blue: 'bg-primary',
   };
 
   return (

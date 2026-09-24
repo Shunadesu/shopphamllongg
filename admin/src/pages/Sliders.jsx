@@ -231,13 +231,13 @@ export default function Sliders() {
       <div>
         <h1 className="text-3xl font-bold text-slate-100">Banner Trang Chủ</h1>
         <p className="text-slate-400 mt-1">
-          Cột trái: Swiper nhiều ảnh lướt tự động (33%) · Cột phải: Ảnh hoặc YouTube (67%)
+          Cột trái: Swiper nhiều ảnh (50%) · Cột phải: Ảnh / YouTube (50%)
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* ===== CỘT TRÁI ===== */}
-        <div className="space-y-3">
+        <div className="space-y-3 border-r border-slate-700 pr-6">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
@@ -312,7 +312,7 @@ export default function Sliders() {
         </div>
 
         {/* ===== CỘT PHẢI ===== */}
-        <div className="space-y-3">
+        <div className="space-y-3 pl-6">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
