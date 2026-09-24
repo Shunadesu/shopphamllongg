@@ -443,6 +443,7 @@ const Home = () => {
         keywords="mua tai khoan fc online, fco, mua tai khoan fifa online 4, tai khoan fo4 gia re, ban tai khoan fc online, fifa online 4 gia re, fc online uy tin, tai khoan fo4 vpl, bp trang"
         type="website"
       />
+
       {/* Hero Section - Banner: Cột trái Swiper + Cột phải Ảnh/YouTube (tỷ lệ động) */}
       <section>
         {sliders?.leftSliders?.length > 0 || sliders?.rightBanner ? (
@@ -457,69 +458,70 @@ const Home = () => {
                 >
                   {/* Cột Trái — Swiper nhiều ảnh */}
                   <div className="w-full overflow-hidden rounded-md">
-                <Swiper
-                  modules={[Autoplay, Pagination]}
-                  autoplay={{ delay: 4000, disableOnInteraction: false }}
-                  pagination={{ clickable: true }}
-                  loop={sliders.leftSliders.length > 1}
-                  className="banner-swiper h-full [&_.swiper-pagination-bullet-active]:!bg-primary [&_.swiper-pagination-bullet]:!bg-white/60"
-                >
-                  {sliders.leftSliders.map((slide) => (
-                    <SwiperSlide key={slide._id} className="!h-auto">
-                      {slide.link ? (
-                        <a href={slide.link} target="_blank" rel="noopener noreferrer" className="block h-full">
+                    <Swiper
+                      modules={[Autoplay, Pagination]}
+                      autoplay={{ delay: 4000, disableOnInteraction: false }}
+                      pagination={{ clickable: true }}
+                      loop={sliders.leftSliders.length > 1}
+                      className="banner-swiper h-full [&_.swiper-pagination-bullet-active]:!bg-primary [&_.swiper-pagination-bullet]:!bg-white/60"
+                    >
+                      {sliders.leftSliders.map((slide) => (
+                        <SwiperSlide key={slide._id} className="!h-auto">
+                          {slide.link ? (
+                            <a href={slide.link} target="_blank" rel="noopener noreferrer" className="block h-full">
+                              <img
+                                src={getImageUrl(slide.image)}
+                                alt={slide.title || 'Banner trái'}
+                                className="w-full h-full object-cover"
+                              />
+                            </a>
+                          ) : (
+                            <img
+                              src={getImageUrl(slide.image)}
+                              alt={slide.title || 'Banner trái'}
+                              className="w-full h-full object-cover"
+                            />
+                          )}
+                        </SwiperSlide>
+                      ))}
+                    </Swiper>
+                  </div>
+
+                  {/* Cột Phải — Ảnh hoặc YouTube */}
+                  <div className="relative w-full overflow-hidden rounded-md">
+                    {sliders.rightBanner?.type === 'youtube' && toYoutubeEmbedUrl(sliders.rightBanner.youtubeUrl) ? (
+                      <iframe
+                        src={toYoutubeEmbedUrl(sliders.rightBanner.youtubeUrl)}
+                        title={sliders.rightBanner.title || 'Video YouTube'}
+                        className="w-full h-full"
+                        style={{ aspectRatio: '16/9' }}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    ) : sliders.rightBanner?.image ? (
+                      sliders.rightBanner.link ? (
+                        <a href={sliders.rightBanner.link} target="_blank" rel="noopener noreferrer" className="block h-full">
                           <img
-                            src={getImageUrl(slide.image)}
-                            alt={slide.title || 'Banner trái'}
+                            src={getImageUrl(sliders.rightBanner.image)}
+                            alt={sliders.rightBanner.title || 'Banner phải'}
                             className="w-full h-full object-cover"
                           />
                         </a>
                       ) : (
                         <img
-                          src={getImageUrl(slide.image)}
-                          alt={slide.title || 'Banner trái'}
+                          src={getImageUrl(sliders.rightBanner.image)}
+                          alt={sliders.rightBanner.title || 'Banner phải'}
                           className="w-full h-full object-cover"
                         />
-                      )}
-                    </SwiperSlide>
-                  ))}
-                </Swiper>
-              </div>
-
-              {/* Cột Phải — Ảnh hoặc YouTube */}
-              <div className="relative w-full overflow-hidden rounded-md">
-                {sliders.rightBanner?.type === 'youtube' && toYoutubeEmbedUrl(sliders.rightBanner.youtubeUrl) ? (
-                  <iframe
-                    src={toYoutubeEmbedUrl(sliders.rightBanner.youtubeUrl)}
-                    title={sliders.rightBanner.title || 'Video YouTube'}
-                    className="w-full h-full"
-                    style={{ aspectRatio: '16/9' }}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                ) : sliders.rightBanner?.image ? (
-                  sliders.rightBanner.link ? (
-                    <a href={sliders.rightBanner.link} target="_blank" rel="noopener noreferrer" className="block h-full">
-                      <img
-                        src={getImageUrl(sliders.rightBanner.image)}
-                        alt={sliders.rightBanner.title || 'Banner phải'}
-                        className="w-full h-full object-cover"
-                      />
-                    </a>
-                  ) : (
-                    <img
-                      src={getImageUrl(sliders.rightBanner.image)}
-                      alt={sliders.rightBanner.title || 'Banner phải'}
-                      className="w-full h-full object-cover"
-                    />
-                  )
-                ) : (
-                  /* Fallback gradient khi chưa có banner phải */
-                  <div className="w-full h-full bg-gradient-to-br from-primary-dark via-primary to-accent min-h-[200px]" />
-                )}
-              </div>
-            </div>
-            )}
+                      )
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-primary-dark via-primary to-accent min-h-[200px]" />
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
         ) : (
           <div className="container-custom">
             <div className="w-full bg-gradient-to-br from-primary-dark via-primary to-accent rounded-md" style={{ minHeight: '200px' }} />
@@ -527,7 +529,6 @@ const Home = () => {
         )}
       </section>
 
-      {/* Content - starts below header */}
       <div className="pt-4">
         {/* Categories */}
         <section className="py-2">

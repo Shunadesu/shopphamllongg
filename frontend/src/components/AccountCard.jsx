@@ -82,7 +82,7 @@ const AccountCard = ({ account, onBuyNow }) => {
             <span className='hidden md:flex text-sm text-slate-400'>
               Giá bán:
             </span>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-sky-400 to-sky-200 font-black text-xl">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-300 font-black text-xl">
               {account.price.toLocaleString('vi-VN')}đ
             </span>
           </div>

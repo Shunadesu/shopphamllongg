@@ -6,6 +6,7 @@ import {
   FiPlus, FiRefreshCw, FiEdit2, FiTrash2, FiX,
   FiDollarSign, FiImage, FiUpload, FiCreditCard, FiGrid,
 } from 'react-icons/fi';
+import { getVietqrBankCode } from '../utils/bankUtils';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Pagination } from 'swiper/modules';
 import 'swiper/css';
@@ -19,7 +20,7 @@ const VIETNAMESE_BANKS = [
   { code: 'BID', name: 'BIDV' },
   { code: 'ACB', name: 'ACB' },
   { code: 'TPB', name: 'TPBank' },
-  { code: 'MBB', name: 'MB Bank' },
+  { code: 'MB', name: 'MB Bank' },
   { code: 'VPB', name: 'VPBank' },
   { code: 'TCB', name: 'Techcombank' },
   { code: 'CTG', name: 'CTGC (Viet Capital Bank)' },
@@ -541,7 +542,7 @@ export default function BankAccounts() {
                 {qrTab === 'vietqr' && (
                   <div className="space-y-3">
                     <p className="text-xs text-slate-500">
-                      Dùng VietQR.io để render mã QR động. Khi người dùng quét, số tiền và nội dung chuyển khoản sẽ được điền tự động. Chỉ hỗ trợ ACB.
+                      Dùng VietQR.io để render mã QR động. Khi người dùng quét, số tiền và nội dung chuyển khoản sẽ được điền tự động.
                     </p>
 
                     <div>
@@ -559,9 +560,11 @@ export default function BankAccounts() {
 
                     {form.accountNumber && form.accountName ? (
                       <div className="border border-slate-600 rounded-lg p-3 bg-slate-800/50">
-                        <p className="text-xs text-slate-400 mb-2">Preview (mẫu 10,000 VND):</p>
+                        <p className="text-xs text-slate-400 mb-2">
+                          Preview (mẫu 10,000 VND) — Ngân hàng: <span className="text-cyan-400 font-medium">{VIETNAMESE_BANKS.find(b => b.code === form.bankName)?.name || form.bankName || 'ACB'}</span>
+                        </p>
                         <img
-                          src={`https://img.vietqr.io/image/ACB-${form.accountNumber}-${form.vietqrTemplate}.png?amount=10000&addInfo=preview+10000&accountName=${encodeURIComponent(form.accountName)}`}
+                          src={`https://img.vietqr.io/image/${form.bankName || 'ACB'}-${form.accountNumber}-${form.vietqrTemplate}.png?amount=10000&addInfo=preview+10000&accountName=${encodeURIComponent(form.accountName)}`}
                           alt="VietQR Preview"
                           className="max-h-40 rounded-lg border border-slate-700 mx-auto"
                           onError={(e) => { e.target.style.display = 'none'; }}

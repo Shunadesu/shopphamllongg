@@ -3,6 +3,31 @@ import DepositRequest from '../models/DepositRequest.js';
 import BankAccount from '../models/BankAccount.js';
 import User from '../models/User.js';
 import { auth } from '../middleware/auth.js';
+
+// Map bank name (as stored in DB) → VietQR.io bank code
+const VIETQR_BANK_CODE_MAP = {
+  'ACB': 'ACB', 'Vietcombank': 'VCB', 'VIB': 'VIB',
+  'VIB - Ngân hàng Quốc tế': 'VIB', 'VietinBank': 'ICB', 'ICB': 'ICB',
+  'BIDV': 'BID', 'BID': 'BID', 'TPBank': 'TPB', 'TPB': 'TPB',
+  'MB Bank': 'MB', 'MB': 'MB', 'VPBank': 'VPB', 'VPB': 'VPB',
+  'Techcombank': 'TCB', 'TCB': 'TCB', 'CTG': 'CTG',
+  'CTGC (Viet Capital Bank)': 'CTG', 'Eximbank': 'EIB', 'EIB': 'EIB',
+  'HDBank': 'HDB', 'HDB': 'HDB', 'MSB': 'MSB',
+  'MSB - Ngân hàng Hàng Hải': 'MSB', 'OCB': 'OCB', 'SHB': 'SHB',
+  'Sacombank': 'STB', 'STB': 'STB', 'ABBANK': 'ABB', 'ABB': 'ABB',
+  'Kienlongbank': 'KLB', 'KLB': 'KLB', 'LPB': 'LPB',
+  'LienVietPostBank': 'LPB', 'NamABank': 'NAB', 'NAB': 'NAB',
+  'PGBank': 'PGB', 'PGB': 'PGB', 'SCB': 'SCB', 'SeABank': 'SEA',
+  'SEA': 'SEA', 'Saigonbank': 'SSB', 'SSB': 'SSB',
+  'VietABank': 'VAB', 'VAB': 'VAB', 'VietCredit': 'VCCB',
+  'VCCB': 'VCCB', 'WOORI': 'WOORI', 'Woori Bank': 'WOORI',
+  'UOB': 'UOB', 'UOB Singapore': 'UOB',
+};
+
+const getVietqrBankCode = (bankName) => {
+  if (!bankName) return 'ACB';
+  return VIETQR_BANK_CODE_MAP[bankName] || 'ACB';
+};
 import { depositLimiter } from '../middleware/rateLimiter.js';
 import { sendDepositNotification } from '../services/telegramBot.js';
 import emailChecker from '../services/emailChecker.js';
@@ -197,6 +222,7 @@ router.post('/random-request', auth, async (req, res) => {
         qrCodeImage: selectedBank.qrCodeImage,
         useVietQr: selectedBank.useVietQr || false,
         vietqrTemplate: selectedBank.vietqrTemplate || 'compact2',
+        vietqrBankCode: getVietqrBankCode(selectedBank.bankName),
         identifier: selectedBank.identifier,
         transferNote: depositRequest.transferNote,
       },
