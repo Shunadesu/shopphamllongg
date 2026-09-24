@@ -54,12 +54,18 @@ function App() {
   const applyDefaultTheme = useThemeStore((s) => s.applyDefault);
   const settings = useSettingsStore((s) => s.settings);
 
-  // Dọn cache catalog cũ trong localStorage (phiên bản trước dùng persist).
-  // Chỉ chạy 1 lần: xóa key cũ và đánh dấu đã dọn để không lặp lại.
+  // Dọn cache cũ trong localStorage (phiên bản trước dùng persist có thể đã lưu
+  // state với shape không đúng — vd. socialLinks là object thay vì array —
+  // gây lỗi '.map is not a function' khi render). Chỉ chạy 1 lần.
   useEffect(() => {
-    if (!localStorage.getItem('catalog-storage-cleaned-v1')) {
+    if (!localStorage.getItem('app-storage-cleaned-v2')) {
+      // catalog-storage: đã bỏ persist ở catalogStore.js
       localStorage.removeItem('catalog-storage');
-      localStorage.setItem('catalog-storage-cleaned-v1', '1');
+      // deposit-storage: vẫn dùng persist nhưng reset để đảm bảo shape đúng
+      localStorage.removeItem('deposit-storage');
+      // settings-storage: bump version để migrate xóa field corrupted
+      localStorage.removeItem('settings-storage');
+      localStorage.setItem('app-storage-cleaned-v2', '1');
     }
   }, []);
 

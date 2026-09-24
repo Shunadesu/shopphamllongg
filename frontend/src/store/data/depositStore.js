@@ -59,13 +59,20 @@ export const useDepositStore = create(
 
       fetchTopDepositors: async (force = false) => {
         const state = get();
-        if (!force && state.topDepositors.length > 0 && Date.now() - state.lastFetchedTop < TOP_TTL) {
+        if (!force && Array.isArray(state.topDepositors) && state.topDepositors.length > 0 && Date.now() - state.lastFetchedTop < TOP_TTL) {
           return state.topDepositors;
         }
         set({ topLoading: true, error: null });
         try {
           const res = await api.get('/deposits/top-depositors');
-          const data = res.data || [];
+          // Đảm bảo luôn là array; nếu API trả object thì lấy mảng đầu tiên tìm được
+          let data = res.data;
+          if (!Array.isArray(data)) {
+            if (Array.isArray(data?.depositors)) data = data.depositors;
+            else if (Array.isArray(data?.data)) data = data.data;
+            else if (Array.isArray(data?.items)) data = data.items;
+            else data = [];
+          }
           set({ topDepositors: data, lastFetchedTop: Date.now(), topLoading: false });
           return data;
         } catch (err) {

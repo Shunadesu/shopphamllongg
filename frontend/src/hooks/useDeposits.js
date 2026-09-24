@@ -11,14 +11,14 @@ export function useBankAccounts(options = {}) {
 
   useEffect(() => {
     if (!enabled) return;
-    if (!data || data.length === 0 || Date.now() - lastFetched > 30 * 60 * 1000) {
+    if (!Array.isArray(data) || data.length === 0 || Date.now() - lastFetched > 30 * 60 * 1000) {
       useDepositStore.getState().fetchBankAccounts().catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]);
 
   return {
-    data: data || [],
+    data: Array.isArray(data) ? data : [],
     loading,
     refresh: () => useDepositStore.getState().fetchBankAccounts(true),
   };
@@ -32,14 +32,14 @@ export function useMyDepositRequests(options = {}) {
 
   useEffect(() => {
     if (!enabled) return;
-    if (!data || Date.now() - lastFetched > REQUESTS_TTL) {
+    if (!Array.isArray(data) || Date.now() - lastFetched > REQUESTS_TTL) {
       useDepositStore.getState().fetchMyRequests().catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]);
 
   return {
-    data: data || [],
+    data: Array.isArray(data) ? data : [],
     loading,
     refresh: () => useDepositStore.getState().fetchMyRequests(true),
   };
@@ -51,14 +51,14 @@ export function useTopDepositors() {
   const lastFetched = useDepositStore((s) => s.lastFetchedTop);
 
   useEffect(() => {
-    if (!data || data.length === 0 || Date.now() - lastFetched > 10 * 60 * 1000) {
+    if (!Array.isArray(data) || data.length === 0 || Date.now() - lastFetched > 10 * 60 * 1000) {
       useDepositStore.getState().fetchTopDepositors().catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return {
-    data: data || [],
+    data: Array.isArray(data) ? data : [],
     loading,
     refresh: () => useDepositStore.getState().fetchTopDepositors(true),
   };
