@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
@@ -48,6 +48,19 @@ export default function Sliders() {
   const rightBanner = Array.isArray(sliders)
     ? sliders.find((s) => s.slot === 'right')
     : null;
+
+  // Layout width state — stored on the first left slider
+  const [layoutWidth, setLayoutWidth] = useState(33);
+
+  // Sync layoutWidth from API when sliders load
+  useEffect(() => {
+    if (leftSliders.length > 0 && leftSliders[0]?.width) {
+      setLayoutWidth(leftSliders[0].width);
+    } else if (leftSliders.length > 0 && leftSliders[0]?.width === undefined) {
+      // Slider exists but no width set yet — use default 33
+      setLayoutWidth(33);
+    }
+  }, [leftSliders]);
 
   // Helper: parse server error message
   const parseError = (err, action = 'thao tác') => {
@@ -120,6 +133,27 @@ export default function Sliders() {
     },
     onError: (err) => toast.error(parseError(err, 'xóa banner')),
   });
+
+  // Save layout width (stored on the first left slider)
+  const updateLayoutMutation = useMutation({
+    mutationFn: ({ id, data }) => api.put(`/admin/sliders/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['sliders']);
+      toast.success('Cập nhật layout thành công');
+    },
+    onError: (err) => toast.error(parseError(err, 'cập nhật layout')),
+  });
+
+  const handleSaveLayout = () => {
+    if (leftSliders.length === 0) {
+      toast.error('Vui lòng thêm ít nhất 1 ảnh Swiper trước');
+      return;
+    }
+    updateLayoutMutation.mutate({
+      id: leftSliders[0]._id,
+      data: { ...leftSliders[0], width: layoutWidth },
+    });
+  };
 
   // Left modal handlers
   const openLeftModal = (slider = null) => {
@@ -248,8 +282,82 @@ export default function Sliders() {
       <div>
         <h1 className="text-3xl font-bold text-slate-100">Banner Trang Chủ</h1>
         <p className="text-slate-400 mt-1">
-          Cột trái: Swiper nhiều ảnh (50%) · Cột phải: Ảnh / YouTube (50%)
+          Cột trái: Swiper nhiều ảnh ({layoutWidth}%) · Cột phải: Ảnh / YouTube ({100 - layoutWidth}%)
         </p>
+      </div>
+
+      {/* Layout Config */}
+      <div className="card p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+            <FiLayers className="text-cyan-400" />
+            Cấu hình Layout Banner
+          </h3>
+          <span className="text-xs text-slate-500">Tỷ lệ cột trái / cột phải</span>
+        </div>
+        <div className="flex items-center gap-4">
+          {/* Left column label + slider */}
+          <div className="flex-1">
+            <label className="text-xs text-slate-400 block mb-1.5">
+              Cột trái — Swiper <span className="text-cyan-400 font-medium">{layoutWidth}%</span>
+            </label>
+            <input
+              type="range"
+              min="20"
+              max="80"
+              step="5"
+              value={layoutWidth}
+              onChange={(e) => setLayoutWidth(Number(e.target.value))}
+              className="w-full accent-cyan-500"
+            />
+          </div>
+
+          {/* Divider with current split display */}
+          <div className="flex flex-col items-center min-w-[64px]">
+            <div className="flex items-center gap-1 text-lg font-bold">
+              <span className="text-cyan-400">{layoutWidth}</span>
+              <span className="text-slate-500">/</span>
+              <span className="text-slate-400">{100 - layoutWidth}</span>
+            </div>
+            <span className="text-[10px] text-slate-600 uppercase tracking-wider">%</span>
+          </div>
+
+          {/* Right column label + slider */}
+          <div className="flex-1">
+            <label className="text-xs text-slate-400 block mb-1.5 text-right">
+              Cột phải — Banner <span className="text-slate-300 font-medium">{100 - layoutWidth}%</span>
+            </label>
+            <input
+              type="range"
+              min="20"
+              max="80"
+              step="5"
+              value={100 - layoutWidth}
+              disabled
+              className="w-full accent-cyan-500 opacity-40 cursor-not-allowed"
+            />
+          </div>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          {/* Visual preview bar */}
+          <div className="flex-1 h-3 rounded-full overflow-hidden bg-slate-700 flex">
+            <div
+              className="h-full bg-cyan-500/60 transition-all duration-200 rounded-l-full"
+              style={{ width: `${layoutWidth}%` }}
+            />
+            <div
+              className="h-full bg-slate-600 transition-all duration-200 rounded-r-full"
+              style={{ width: `${100 - layoutWidth}%` }}
+            />
+          </div>
+          <button
+            onClick={handleSaveLayout}
+            disabled={updateLayoutMutation.isPending}
+            className="btn-primary text-sm whitespace-nowrap disabled:opacity-50"
+          >
+            {updateLayoutMutation.isPending ? 'Đang lưu...' : 'Lưu Layout'}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -613,7 +721,7 @@ export default function Sliders() {
 
               {/* Live preview */}
               <div className="border border-slate-600 rounded-lg overflow-hidden">
-                <div className="grid gap-0.5" style={{ gridTemplateColumns: '33fr 67fr' }}>
+                <div className="grid gap-0.5" style={{ gridTemplateColumns: `${layoutWidth}fr ${100 - layoutWidth}fr` }}>
                   <div className="bg-slate-800 flex items-center justify-center h-16">
                     <span className="text-xs text-slate-500">Swiper trái</span>
                   </div>
@@ -631,7 +739,7 @@ export default function Sliders() {
                   </div>
                 </div>
                 <div className="bg-slate-800 p-2 text-xs text-slate-400 text-center">
-                  Xem trước — 33% / 67%
+                  Xem trước — {layoutWidth}% / {100 - layoutWidth}%
                 </div>
               </div>
 

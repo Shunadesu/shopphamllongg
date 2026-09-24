@@ -443,16 +443,20 @@ const Home = () => {
         keywords="mua tai khoan fc online, fco, mua tai khoan fifa online 4, tai khoan fo4 gia re, ban tai khoan fc online, fifa online 4 gia re, fc online uy tin, tai khoan fo4 vpl, bp trang"
         type="website"
       />
-      {/* Hero Section - Banner: Cột trái Swiper (33%) + Cột phải Ảnh/YouTube (67%) */}
+      {/* Hero Section - Banner: Cột trái Swiper + Cột phải Ảnh/YouTube (tỷ lệ động) */}
       <section>
         {sliders?.leftSliders?.length > 0 || sliders?.rightBanner ? (
           <div className="container-custom">
-            <div
-              className="grid gap-1 rounded-md overflow-hidden banner-grid"
-              style={{ gridTemplateColumns: '33fr 67fr' }}
-            >
-              {/* Cột Trái — Swiper nhiều ảnh */}
-              <div className="w-full overflow-hidden rounded-md">
+            {(() => {
+              const leftWidth = sliders?.leftSliders?.[0]?.width ?? 33;
+              const rightWidth = 100 - leftWidth;
+              return (
+                <div
+                  className="grid gap-1 rounded-md overflow-hidden banner-grid"
+                  style={{ gridTemplateColumns: `${leftWidth}fr ${rightWidth}fr` }}
+                >
+                  {/* Cột Trái — Swiper nhiều ảnh */}
+                  <div className="w-full overflow-hidden rounded-md">
                 <Swiper
                   modules={[Autoplay, Pagination]}
                   autoplay={{ delay: 4000, disableOnInteraction: false }}
@@ -515,7 +519,7 @@ const Home = () => {
                 )}
               </div>
             </div>
-          </div>
+            )}
         ) : (
           <div className="container-custom">
             <div className="w-full bg-gradient-to-br from-primary-dark via-primary to-accent rounded-md" style={{ minHeight: '200px' }} />
