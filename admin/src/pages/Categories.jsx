@@ -262,7 +262,7 @@ export default function Categories() {
                               e.stopPropagation();
                               handleDelete(category._id);
                             }}
-                            className="p-2 bg-slate-700 hover:bg-orange-500/20 text-slate-300 hover:text-orange-400 rounded-lg transition-all"
+                            className="p-2 bg-slate-700 hover:bg-blue-500/20 text-slate-300 hover:text-blue-400 rounded-lg transition-all"
                             title="Xóa"
                           >
                             <FiTrash2 />
@@ -352,7 +352,7 @@ export default function Categories() {
                             </Link>
                             <button
                               onClick={() => handleDelete(sub._id)}
-                              className="p-2 bg-slate-700 hover:bg-orange-500/20 text-slate-300 hover:text-orange-400 rounded-lg transition-all"
+                              className="p-2 bg-slate-700 hover:bg-blue-500/20 text-slate-300 hover:text-blue-400 rounded-lg transition-all"
                               title="Xóa"
                             >
                               <FiTrash2 />

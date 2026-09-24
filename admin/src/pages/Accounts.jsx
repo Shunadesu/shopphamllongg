@@ -372,7 +372,7 @@ export default function Accounts() {
                         </span>
                       )}
                       {account.promotionName && (
-                        <span className="text-xs bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded inline-block w-fit" title={account.promotionName}>
+                        <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded inline-block w-fit" title={account.promotionName}>
                           KM: {account.discountPercent || 0}%
                         </span>
                       )}

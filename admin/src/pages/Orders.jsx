@@ -177,7 +177,7 @@ export default function Orders() {
                           </button>
                           <button
                             onClick={() => handleUpdateStatus(order._id, 'cancelled')}
-                            className="p-2 hover:bg-orange-500/20 text-orange-400 rounded-lg transition-all"
+                            className="p-2 hover:bg-blue-500/20 text-blue-400 rounded-lg transition-all"
                             title="Hủy đơn"
                           >
                             <FiX />

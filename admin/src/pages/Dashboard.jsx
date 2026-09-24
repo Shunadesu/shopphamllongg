@@ -85,10 +85,10 @@ export default function Dashboard() {
       title: 'Người dùng',
       value: stats?.totalUsers || 0,
       icon: FiUsers,
-      color: 'orange',
-      bgColor: 'bg-orange-500/10',
-      borderColor: 'border-orange-500/30',
-      textColor: 'text-orange-400',
+      color: '#3B82F6',
+      bgColor: 'bg-blue-500/10',
+      borderColor: 'border-blue-500/30',
+      textColor: 'text-blue-400',
     },
   ];
 

@@ -75,7 +75,7 @@ export default function SpinHistory() {
         );
       case 'voucher':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-500/20 text-orange-400 rounded text-xs font-semibold">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded text-xs font-semibold">
             🎫 Voucher
           </span>
         );
@@ -164,8 +164,8 @@ export default function SpinHistory() {
 
         <div className="bg-slate-950 border border-slate-800 rounded-xl p-4">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-orange-500/10 rounded-lg flex items-center justify-center">
-              <FiGift className="text-orange-400" />
+            <div className="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center">
+              <FiGift className="text-blue-400" />
             </div>
             <div>
               <p className="text-sm text-slate-400">Voucher trúng</p>
@@ -269,7 +269,7 @@ export default function SpinHistory() {
                     className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 rounded-lg"
                   >
                     <span className={`text-xs font-bold ${
-                      i === 0 ? 'text-yellow-400' : i === 1 ? 'text-slate-300' : i === 2 ? 'text-orange-400' : 'text-slate-500'
+                      i === 0 ? 'text-yellow-400' : i === 1 ? 'text-slate-300' : i === 2 ? 'text-blue-400' : 'text-slate-500'
                     }`}>
                       #{i + 1}
                     </span>
@@ -367,7 +367,7 @@ export default function SpinHistory() {
                     <td className="px-4 py-3">
                       <p className="text-slate-200 font-medium">{item.rewardLabel}</p>
                       {item.voucherCode && (
-                        <p className="text-xs text-orange-400 font-mono">Mã: {item.voucherCode}</p>
+                        <p className="text-xs text-blue-400 font-mono">Mã: {item.voucherCode}</p>
                       )}
                       {item.accountId && (
                         <p className="text-xs text-purple-400">{item.accountId.title}</p>

@@ -118,7 +118,7 @@ function App() {
             },
             error: {
               iconTheme: {
-                primary: '#F97316',
+                primary: '#3B82F6',
                 secondary: '#F8FAFC',
               },
             },

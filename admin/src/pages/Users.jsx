@@ -252,7 +252,7 @@ export default function Users() {
                     {(user.totalDeposited || 0).toLocaleString('vi-VN')}đ
                   </td>
                   <td>
-                    <span className="px-3 py-1 bg-orange-500/20 text-orange-400 rounded-full font-semibold text-sm">
+                    <span className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full font-semibold text-sm">
                       🎡 {user.spins || 0}
                     </span>
                   </td>
@@ -284,7 +284,7 @@ export default function Users() {
                         onClick={() => handleToggleAdmin(user._id, user.isAdmin)}
                         className={`p-2 rounded-lg transition-all ${
                           user.isAdmin
-                            ? 'hover:bg-orange-500/20 text-orange-400'
+                            ? 'hover:bg-blue-500/20 text-blue-400'
                             : 'hover:bg-green-500/20 text-green-400'
                         }`}
                         title={user.isAdmin ? 'Gỡ quyền admin' : 'Cấp quyền admin'}
@@ -336,9 +336,9 @@ export default function Users() {
                     {(selectedUser.totalDeposited || 0).toLocaleString('vi-VN')}đ
                   </p>
                 </div>
-                <div className="card bg-orange-500/10 border-orange-500/30">
+                <div className="card bg-blue-500/10 border-blue-500/30">
                   <p className="text-sm text-slate-400 mb-1">Lượt quay còn lại</p>
-                  <p className="text-2xl font-bold text-orange-400">
+                  <p className="text-2xl font-bold text-blue-400">
                     🎡 {selectedUser.spins || 0}
                   </p>
                 </div>

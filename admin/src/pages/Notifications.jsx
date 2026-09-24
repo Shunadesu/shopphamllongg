@@ -147,7 +147,7 @@ export default function Notifications() {
                 </button>
                 <button
                   onClick={() => handleDelete(notification._id)}
-                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-slate-700 hover:bg-orange-500/20 text-slate-300 hover:text-orange-400 rounded-lg transition-all"
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-slate-700 hover:bg-blue-500/20 text-slate-300 hover:text-blue-400 rounded-lg transition-all"
                 >
                   <FiTrash2 /> Xóa
                 </button>

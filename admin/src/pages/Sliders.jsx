@@ -49,6 +49,23 @@ export default function Sliders() {
     ? sliders.find((s) => s.slot === 'right')
     : null;
 
+  // Helper: parse server error message
+  const parseError = (err, action = 'thao tác') => {
+    const data = err.response?.data;
+    // Server trả về message trực tiếp
+    if (data?.message) return data.message;
+    // Server trả về mảng lỗi validation: { errors: ["msg1", "msg2"] }
+    if (Array.isArray(data?.errors)) return data.errors.join(' · ');
+    // Server trả về object lỗi: { errors: { field: "msg" } }
+    if (data?.errors && typeof data.errors === 'object') {
+      return Object.values(data.errors).join(' · ');
+    }
+    // Server trả về { error: "..." }
+    if (data?.error) return data.error;
+    // Lỗi mạng / không xác định
+    return `Không thể ${action}. Vui lòng thử lại.`;
+  };
+
   // Mutations for left sliders
   const createLeftMutation = useMutation({
     mutationFn: (data) => api.post('/admin/sliders', data),
@@ -57,7 +74,7 @@ export default function Sliders() {
       toast.success('Thêm ảnh Swiper thành công');
       closeLeftModal();
     },
-    onError: (err) => toast.error(err.response?.data?.message || 'Có lỗi xảy ra'),
+    onError: (err) => toast.error(parseError(err, 'thêm ảnh')),
   });
 
   const updateLeftMutation = useMutation({
@@ -67,7 +84,7 @@ export default function Sliders() {
       toast.success('Cập nhật thành công');
       closeLeftModal();
     },
-    onError: (err) => toast.error(err.response?.data?.message || 'Có lỗi xảy ra'),
+    onError: (err) => toast.error(parseError(err, 'cập nhật')),
   });
 
   const deleteLeftMutation = useMutation({
@@ -76,7 +93,7 @@ export default function Sliders() {
       queryClient.invalidateQueries(['sliders']);
       toast.success('Xóa thành công');
     },
-    onError: (err) => toast.error(err.response?.data?.message || 'Có lỗi xảy ra'),
+    onError: (err) => toast.error(parseError(err, 'xóa ảnh')),
   });
 
   // Mutations for right banner
@@ -92,7 +109,7 @@ export default function Sliders() {
       toast.success('Lưu banner phải thành công');
       closeRightModal();
     },
-    onError: (err) => toast.error(err.response?.data?.message || 'Có lỗi xảy ra'),
+    onError: (err) => toast.error(parseError(err, 'lưu banner')),
   });
 
   const deleteRightMutation = useMutation({
@@ -101,7 +118,7 @@ export default function Sliders() {
       queryClient.invalidateQueries(['sliders']);
       toast.success('Xóa banner phải thành công');
     },
-    onError: (err) => toast.error(err.response?.data?.message || 'Có lỗi xảy ra'),
+    onError: (err) => toast.error(parseError(err, 'xóa banner')),
   });
 
   // Left modal handlers
@@ -235,9 +252,9 @@ export default function Sliders() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* ===== CỘT TRÁI ===== */}
-        <div className="space-y-3 border-r border-slate-700 pr-6">
+        <div className="space-y-3 border-r border-slate-700 pr-8">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
@@ -298,7 +315,7 @@ export default function Sliders() {
                           <button onClick={() => openLeftModal(s)} className="p-1.5 rounded hover:bg-cyan-500/20 text-slate-400 hover:text-cyan-400 transition-all" title="Sửa">
                             <FiEdit2 size={15} />
                           </button>
-                          <button onClick={() => handleDeleteLeft(s._id)} className="p-1.5 rounded hover:bg-orange-500/20 text-slate-400 hover:text-orange-400 transition-all" title="Xóa">
+                          <button onClick={() => handleDeleteLeft(s._id)} className="p-1.5 rounded hover:bg-blue-500/20 text-slate-400 hover:text-blue-400 transition-all" title="Xóa">
                             <FiTrash2 size={15} />
                           </button>
                         </div>
@@ -312,7 +329,7 @@ export default function Sliders() {
         </div>
 
         {/* ===== CỘT PHẢI ===== */}
-        <div className="space-y-3 pl-6">
+        <div className="space-y-3 pl-8">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
@@ -321,57 +338,76 @@ export default function Sliders() {
               </h2>
               <p className="text-slate-400 text-sm mt-0.5">Chọn hiển thị ảnh hoặc video YouTube</p>
             </div>
-            {rightBanner && (
-              <button onClick={() => handleDeleteRight(rightBanner._id)} className="btn-secondary text-orange-400 border-orange-500/30 hover:bg-orange-500/10 flex items-center gap-2">
-                <FiTrash2 size={15} /> Xóa
-              </button>
-            )}
           </div>
 
-          {/* Right banner preview / edit card */}
+          {/* Right banner table */}
           {rightBanner ? (
             <div className="card overflow-hidden p-0">
-              <div className="relative">
-                {rightBanner.type === 'youtube' ? (
-                  <div className="bg-slate-800 flex items-center justify-center" style={{ aspectRatio: '16/9' }}>
-                    <div className="text-center">
-                      <FiYoutube className="text-5xl text-red-500 mx-auto mb-2" />
-                      <p className="text-slate-300 text-sm font-medium">YouTube Video</p>
-                      <p className="text-slate-500 text-xs mt-1">{rightBanner.title || '—'}</p>
-                    </div>
-                  </div>
-                ) : rightBanner.image ? (
-                  <img src={rightBanner.image} alt={rightBanner.title} className="w-full h-40 object-cover" />
-                ) : (
-                  <div className="w-full h-40 bg-slate-800 flex items-center justify-center">
-                    <FiImage className="text-4xl text-slate-600" />
-                  </div>
-                )}
-                <div className="absolute top-2 right-2">
-                  <span className={`badge ${rightBanner.isActive ? 'badge-success' : 'badge-danger'}`}>
-                    {rightBanner.isActive ? 'Active' : 'Off'}
-                  </span>
-                </div>
-              </div>
-              <div className="p-4 flex items-center justify-between gap-3">
-                <div>
-                  <p className="font-medium text-slate-100">{rightBanner.title || '—'}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    {rightBanner.type === 'youtube' ? 'YouTube' : 'Hình ảnh'}
-                    {rightBanner.link && ` · ${rightBanner.link}`}
-                  </p>
-                </div>
-                <button onClick={() => openRightModal(rightBanner)} className="btn-primary flex items-center gap-1.5">
-                  <FiEdit2 size={14} /> Sửa
-                </button>
-              </div>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-700 bg-slate-800/50">
+                    <th className="text-left px-4 py-3 text-slate-400 font-medium">Hình ảnh</th>
+                    <th className="text-left px-4 py-3 text-slate-400 font-medium">Tiêu đề</th>
+                    <th className="text-center px-4 py-3 text-slate-400 font-medium">Loại</th>
+                    <th className="text-center px-4 py-3 text-slate-400 font-medium">Trạng thái</th>
+                    <th className="text-center px-4 py-3 text-slate-400 font-medium">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-slate-700/50 hover:bg-slate-800/30 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="w-20 h-12 rounded overflow-hidden bg-slate-700 flex-shrink-0">
+                        {rightBanner.type === 'youtube' ? (
+                          <div className="w-full h-full flex items-center justify-center bg-red-500/10">
+                            <FiYoutube className="text-red-400 text-lg" />
+                          </div>
+                        ) : rightBanner.image ? (
+                          <img src={rightBanner.image} alt={rightBanner.title} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <FiImage className="text-slate-500 text-sm" />
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="font-medium text-slate-100">{rightBanner.title || '—'}</span>
+                      {rightBanner.link && (
+                        <a href={rightBanner.link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 mt-0.5">
+                          <FiExternalLink size={11} /> Link
+                        </a>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`badge ${rightBanner.type === 'youtube' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'badge-info'}`}>
+                        {rightBanner.type === 'youtube' ? 'YouTube' : 'Hình ảnh'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`badge ${rightBanner.isActive ? 'badge-success' : 'badge-danger'}`}>
+                        {rightBanner.isActive ? 'Active' : 'Off'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-1">
+                        <button onClick={() => openRightModal(rightBanner)} className="p-1.5 rounded hover:bg-cyan-500/20 text-slate-400 hover:text-cyan-400 transition-all" title="Sửa">
+                          <FiEdit2 size={15} />
+                        </button>
+                        <button onClick={() => handleDeleteRight(rightBanner._id)} className="p-1.5 rounded hover:bg-blue-500/20 text-slate-400 hover:text-blue-400 transition-all" title="Xóa">
+                          <FiTrash2 size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           ) : (
-            <div className="card text-center py-12">
+            <div className="card text-center py-10">
               <FiImage className="text-4xl text-slate-600 mx-auto mb-3" />
               <p className="text-slate-400 text-sm mb-4">Chưa có banner cột phải</p>
-              <button onClick={() => openRightModal(null)} className="btn-primary">
-                <FiPlus className="inline mr-2" /> Thêm banner phải
+              <button onClick={() => openRightModal(null)} className="btn-primary inline-flex items-center gap-2">
+                <FiPlus /> Thêm banner phải
               </button>
             </div>
           )}

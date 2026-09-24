@@ -359,7 +359,7 @@ export default function BankAccounts() {
                         </button>
                         <button
                           onClick={() => handleDelete(bank._id)}
-                          className="p-2 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-lg transition-all"
+                          className="p-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg transition-all"
                           title="Xóa"
                         >
                           <FiTrash2 size={15} />

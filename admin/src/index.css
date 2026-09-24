@@ -66,7 +66,7 @@ main::-webkit-scrollbar {
   }
   
   .btn-danger {
-    @apply px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-medium rounded-lg transition-colors duration-200;
+    @apply px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200;
   }
   
   .input-field {
@@ -110,7 +110,7 @@ main::-webkit-scrollbar {
   }
   
   .badge-warning {
-    @apply bg-orange-500/20 text-orange-400 border border-orange-500/30;
+    @apply bg-blue-500/20 text-blue-400 border border-blue-500/30;
   }
   
   .badge-danger {

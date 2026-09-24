@@ -168,7 +168,7 @@ export default function Promotions() {
                     </div>
                   </td>
                   <td className="text-center">
-                    <span className="inline-flex items-center px-3 py-1 rounded-lg bg-orange-500/20 text-orange-400 font-bold">
+                    <span className="inline-flex items-center px-3 py-1 rounded-lg bg-blue-500/20 text-blue-400 font-bold">
                       -{promo.discountPercent}%
                     </span>
                   </td>
@@ -219,7 +219,7 @@ export default function Promotions() {
                       </button>
                       <button
                         onClick={() => handleDelete(promo._id, promo.name)}
-                        className="btn-icon text-orange-400 hover:bg-orange-500/10"
+                        className="btn-icon text-blue-400 hover:bg-blue-500/10"
                         title="Xóa"
                       >
                         <FiTrash2 size={16} />

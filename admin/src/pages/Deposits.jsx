@@ -308,7 +308,7 @@ export default function Deposits() {
                           </button>
                           <button
                             onClick={() => handleUpdateStatus(deposit._id, 'rejected')}
-                            className="p-2 hover:bg-orange-500/20 text-orange-400 rounded-lg transition-all"
+                            className="p-2 hover:bg-blue-500/20 text-blue-400 rounded-lg transition-all"
                             title="Từ chối"
                           >
                             <FiX />

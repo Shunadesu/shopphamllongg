@@ -12,9 +12,9 @@ module.exports = {
           950: '#020617',
         },
         primary: {
-          DEFAULT: '#D84315',   // cam-đỏ — màu thương hiệu 🟧
-          light: '#FF6E40',
-          dark: '#BF360C',
+          DEFAULT: '#3B82F6',   // xanh dương — đồng bộ với frontend 🟦
+          light:  '#93C5FD',
+          dark:   '#1D4ED8',
         },
         price: {
           DEFAULT: '#EAB308',  // vàng — dùng cho giá/khuyến mãi 🟨

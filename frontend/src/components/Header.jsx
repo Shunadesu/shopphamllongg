@@ -27,11 +27,11 @@ const Header = ({ onOpenAuth, onOpenCart, isAuthOpen, isCartOpen, onCloseAuth, o
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
 
-  // Resolve theme (fallback to DOM if not yet set in store)
+  // Resolve theme — check DOM class as fallback when store hasn't rehydrated from localStorage yet.
+  // Zustand persist reads async, so on first render theme may still be null even though
+  // the blocking script in index.html already set the dark class on <html>.
   const isDark =
-    theme !== null
-      ? theme === 'dark'
-      : typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+    typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
 
   // Fetch settings for logo
   const { data: settings } = useSettings();

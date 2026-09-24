@@ -74,7 +74,7 @@ export default function AdminLayout() {
               <item.icon className="text-lg" />
               <span className="font-medium flex-1">{item.label}</span>
               {item.badge > 0 && (
-                <span className="bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full min-w-[24px] text-center">
+                <span className="bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded-full min-w-[24px] text-center">
                   {item.badge}
                 </span>
               )}
@@ -96,7 +96,7 @@ export default function AdminLayout() {
           </div>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 text-orange-400 hover:bg-orange-500/10 rounded-lg transition-all duration-200 border border-orange-500/30"
+            className="w-full flex items-center gap-3 px-4 py-3 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all duration-200 border border-blue-500/30"
           >
             <FiLogOut />
             <span className="font-medium">Đăng xuất</span>

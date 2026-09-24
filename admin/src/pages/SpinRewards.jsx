@@ -266,10 +266,10 @@ export default function SpinRewards() {
                       <span className="text-green-400">{reward.value?.toLocaleString('vi-VN')}đ</span>
                     )}
                     {reward.rewardType === 'voucher' && (
-                      <span className="text-orange-400 font-mono">{reward.voucherCode}</span>
+                      <span className="text-blue-400 font-mono">{reward.voucherCode}</span>
                     )}
                     {reward.rewardType === 'voucher' && (
-                      <span className="ml-1 text-orange-400">– {reward.voucherDiscount}%</span>
+                      <span className="ml-1 text-blue-400">– {reward.voucherDiscount}%</span>
                     )}
                     {reward.rewardType === 'account' && reward.accountId && (
                       <span className="text-purple-400">{reward.accountId.title}</span>
@@ -289,7 +289,7 @@ export default function SpinRewards() {
                   {/* Stock */}
                   <td className="px-4 py-3 text-center">
                     {reward.stock !== null ? (
-                      <span className={`text-sm ${reward.stock === 0 ? 'text-red-400' : 'text-orange-400'}`}>
+                      <span className={`text-sm ${reward.stock === 0 ? 'text-red-400' : 'text-blue-400'}`}>
                         {reward.stock}
                       </span>
                     ) : (
