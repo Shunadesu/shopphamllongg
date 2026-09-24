@@ -1,5 +1,6 @@
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay, Pagination, Navigation } from 'swiper/modules';
+import { getImageUrl } from '../utils/api';
 import 'swiper/css';
 import 'swiper/css/pagination';
 import 'swiper/css/navigation';
@@ -34,7 +35,7 @@ const Slider = ({ slides }) => {
             >
               <div className="relative h-64 md:h-96">
                 <img
-                  src={slide.image}
+                  src={getImageUrl(slide.image)}
                   alt={slide.title}
                   className="w-full h-full object-cover"
                 />

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../utils/api';
+import api, { getImageUrl } from '../utils/api';
 import toast from 'react-hot-toast';
 import { FiPlus, FiEdit2, FiTrash2, FiImage, FiExternalLink, FiYoutube, FiLayers, FiX } from 'react-icons/fi';
 import UploadImage from '../components/UploadImage';
@@ -399,7 +399,7 @@ export default function Sliders() {
                     <tr key={s._id} className="border-b border-slate-700/50 hover:bg-slate-800/30 transition-colors">
                       <td className="px-4 py-3">
                         <div className="w-16 h-10 rounded overflow-hidden bg-slate-700 flex-shrink-0">
-                          {s.image && <img src={s.image} alt={s.title} className="w-full h-full object-cover" />}
+                          {s.image && <img src={getImageUrl(s.image)} alt={s.title} className="w-full h-full object-cover" />}
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -470,7 +470,7 @@ export default function Sliders() {
                             <FiYoutube className="text-red-400 text-lg" />
                           </div>
                         ) : rightBanner.image ? (
-                          <img src={rightBanner.image} alt={rightBanner.title} className="w-full h-full object-cover" />
+                          <img src={getImageUrl(rightBanner.image)} alt={rightBanner.title} className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <FiImage className="text-slate-500 text-sm" />
@@ -588,7 +588,7 @@ export default function Sliders() {
               {/* Live preview */}
               {leftForm.image && (
                 <div className="rounded-lg overflow-hidden border border-slate-600">
-                  <img src={leftForm.image} alt="Preview" className="w-full h-32 object-cover" />
+                  <img src={getImageUrl(leftForm.image)} alt="Preview" className="w-full h-32 object-cover" />
                   <div className="bg-slate-800 p-2 text-xs text-slate-400">
                     Swiper — ảnh sẽ hiển thị ở cột trái
                   </div>
@@ -727,7 +727,7 @@ export default function Sliders() {
                   </div>
                   <div className="bg-slate-800 flex items-center justify-center h-16 overflow-hidden">
                     {rightForm.type === 'image' && rightForm.image ? (
-                      <img src={rightForm.image} alt="Preview" className="w-full h-full object-cover" />
+                      <img src={getImageUrl(rightForm.image)} alt="Preview" className="w-full h-full object-cover" />
                     ) : rightForm.type === 'youtube' && rightForm.youtubeUrl ? (
                       <div className="flex flex-col items-center">
                         <FiYoutube size={20} className="text-red-400" />
