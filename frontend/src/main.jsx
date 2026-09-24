@@ -4,7 +4,6 @@ import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { HelmetProvider } from 'react-helmet-async';
 import App from './App.jsx';
-import AppSplash from './components/AppSplash.jsx';
 import './index.css';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { useThemeStore } from './store/themeStore';
@@ -55,7 +54,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <HelmetProvider>
         <BrowserRouter>
           <App />
-          <AppSplash />
           <ThemedToaster />
         </BrowserRouter>
       </HelmetProvider>

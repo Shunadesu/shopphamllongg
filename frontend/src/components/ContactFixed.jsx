@@ -16,9 +16,9 @@ const ContactFixed = () => {
 
       {/* Gọi ngay */}
       <a
-        href="tel:0327487583"
+        href="tel:0344114599"
         className="relative group flex items-center"
-        title="Gọi ngay — 0327487583"
+        title="Gọi ngay — 0344114599"
       >
         <span className="absolute right-full mr-3 flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-slate-800 to-slate-700 text-white text-xs font-bold rounded-lg shadow-xl whitespace-nowrap">
           <FiPhone className="w-3 h-3 text-green-400 flex-shrink-0" />
@@ -39,7 +39,7 @@ const ContactFixed = () => {
 
       {/* Chat Facebook */}
       <a
-        href="https://www.facebook.com/luanfcocom"
+        href="https://www.facebook.com/phamlongfco2006"
         target="_blank"
         rel="noopener noreferrer"
         className="relative group flex items-center"
@@ -64,7 +64,7 @@ const ContactFixed = () => {
 
       {/* Chat Zalo */}
       <a
-        href="https://zalo.me/0327487583"
+        href="https://zalo.me/0344114599"
         target="_blank"
         rel="noopener noreferrer"
         className="relative group flex items-center"
