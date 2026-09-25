@@ -580,7 +580,7 @@ export default function Settings() {
               </label>
               <input
                 type="url"
-                value={logoForm.logo || ''}
+                value={getImageUrl(logoForm.logo) || ''}
                 onChange={(e) => handleLogoUrlChange(e.target.value)}
                 className="input-field"
                 placeholder="https://example.com/logo.png"
@@ -800,7 +800,7 @@ export default function Settings() {
               </div>
               <input
                 type="url"
-                value={seoForm.favicon || ''}
+                value={getImageUrl(seoForm.favicon) || ''}
                 onChange={(e) => setSeoForm({ ...seoForm, favicon: e.target.value })}
                 className="input-field mt-3"
                 placeholder="Hoặc nhập URL favicon"
@@ -850,7 +850,7 @@ export default function Settings() {
               </div>
               <input
                 type="url"
-                value={seoForm.ogImage || ''}
+                value={getImageUrl(seoForm.ogImage) || ''}
                 onChange={(e) => setSeoForm({ ...seoForm, ogImage: e.target.value })}
                 className="input-field mt-3"
                 placeholder="Hoặc nhập URL ảnh OG"
