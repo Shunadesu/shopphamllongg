@@ -128,6 +128,10 @@ export const useSettingsStore = create(
         error: null,
         lastFetched: initialFetched,
       }),
+
+      clearCache: () => set({
+        lastFetched: initialFetched,
+      }),
     }),
     {
       name: 'settings-storage',

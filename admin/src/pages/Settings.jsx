@@ -83,6 +83,9 @@ export default function Settings() {
     onSuccess: () => {
       queryClient.invalidateQueries(['settings']);
       toast.success('Cập nhật cài đặt thành công');
+      // Notify frontend to re-fetch settings (cross-tab via localStorage, same-tab via custom event)
+      localStorage.setItem('settings-updated', Date.now().toString());
+      window.dispatchEvent(new Event('settings-updated'));
     },
     onError: (error) => {
       toast.error(error.response?.data?.message || 'Có lỗi xảy ra');
@@ -117,6 +120,9 @@ export default function Settings() {
     onSuccess: () => {
       queryClient.invalidateQueries(["settings"]);
       toast.success("Lưu logo thành công");
+      // Notify other tabs (frontend) to re-fetch settings
+      localStorage.setItem('settings-updated', Date.now().toString());
+      window.dispatchEvent(new Event('settings-updated'));
       window.location.reload();
     },
     onError: (error) => {
@@ -170,6 +176,9 @@ export default function Settings() {
     onSuccess: (response) => {
       queryClient.invalidateQueries(['settings']);
       toast.success('Lưu cấu hình SEO thành công');
+      // Notify other tabs (frontend) to re-fetch settings
+      localStorage.setItem('settings-updated', Date.now().toString());
+      window.dispatchEvent(new Event('settings-updated'));
       // Immediately update the favicon DOM in the admin panel
       const faviconSetting = response.settings?.find((s) => s.key === 'favicon');
       if (faviconSetting) {

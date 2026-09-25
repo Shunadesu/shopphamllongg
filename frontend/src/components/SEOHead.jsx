@@ -1,3 +1,4 @@
+import { useRef, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { getImageUrl } from '../utils/api';
 
@@ -21,6 +22,14 @@ export default function SEOHead({
   const metaKeywords = keywords || defaultKeywords;
   const metaOgImage = ogImage || defaultOgImage;
 
+  // Stable cache-busting timestamp: only changes when favicon value itself changes
+  const faviconTs = useRef(null);
+  const prevFavicon = useRef(null);
+  if (favicon !== prevFavicon.current) {
+    faviconTs.current = Date.now();
+    prevFavicon.current = favicon;
+  }
+
   return (
     <Helmet>
       {/* Basic */}
@@ -28,8 +37,8 @@ export default function SEOHead({
       <meta name="description" content={metaDescription} />
       <meta name="keywords" content={metaKeywords} />
       
-      {/* Favicon - Update dynamically */}
-      {favicon && <link rel="icon" type="image/x-icon" href={getImageUrl(favicon)} />}
+      {/* Favicon - stable cache-busting timestamp per favicon value */}
+      {favicon && <link rel="icon" type="image/x-icon" href={`${getImageUrl(favicon)}?t=${faviconTs.current}`} />}
       
       {/* Canonical URL */}
       {canonical && <link rel="canonical" href={canonical} />}

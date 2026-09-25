@@ -70,6 +70,21 @@ function App() {
     }
   }, []);
 
+  // Listen for settings updates from admin panel (cross-tab) and re-fetch
+  useEffect(() => {
+    const handleSettingsUpdated = () => {
+      useSettingsStore.getState().clearCache();
+      useSettingsStore.getState().fetchSettings(true).catch(() => {});
+    };
+    window.addEventListener('storage', handleSettingsUpdated);
+    // Also listen for custom event (same-tab fallback)
+    window.addEventListener('settings-updated', handleSettingsUpdated);
+    return () => {
+      window.removeEventListener('storage', handleSettingsUpdated);
+      window.removeEventListener('settings-updated', handleSettingsUpdated);
+    };
+  }, []);
+
   // Drawer state
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -93,12 +108,12 @@ function App() {
     }
   }, [settings, applyDefaultTheme]);
 
-  // Update favicon dynamically from settings
+  // Update favicon dynamically from settings — appends ?t=timestamp to bust browser favicon cache
   useEffect(() => {
     if (settings?.favicon) {
       const faviconLink = document.getElementById('favicon-link');
       if (faviconLink) {
-        faviconLink.href = getImageUrl(settings.favicon);
+        faviconLink.href = `${getImageUrl(settings.favicon)}?t=${Date.now()}`;
       }
     }
   }, [settings?.favicon]);
