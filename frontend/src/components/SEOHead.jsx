@@ -1,4 +1,5 @@
 import { Helmet } from 'react-helmet-async';
+import { getImageUrl } from '../utils/api';
 
 export default function SEOHead({
   title,
@@ -28,7 +29,7 @@ export default function SEOHead({
       <meta name="keywords" content={metaKeywords} />
       
       {/* Favicon - Update dynamically */}
-      {favicon && <link rel="icon" type="image/x-icon" href={favicon} />}
+      {favicon && <link rel="icon" type="image/x-icon" href={getImageUrl(favicon)} />}
       
       {/* Canonical URL */}
       {canonical && <link rel="canonical" href={canonical} />}

@@ -10,6 +10,7 @@ import SEOHead from './components/SEOHead';
 import { useThemeStore } from './store/themeStore';
 import { useSettingsStore } from './store/data/settingsStore';
 import { useCartStore } from './store/cartStore';
+import { getImageUrl } from './utils/api';
 
 // Pages
 import Home from './pages/Home';
@@ -63,7 +64,7 @@ function App() {
   // settings/socialLinks/sliders/notifications persist via localStorage so F5 stays instant.
   // cart is fetched fresh on mount and on auth changes.
   useEffect(() => {
-    useSettingsStore.getState().fetchSettings().catch(() => {});
+    useSettingsStore.getState().fetchSettings(true).catch(() => {});
     useSettingsStore.getState().fetchSocialLinks().catch(() => {});
     useSettingsStore.getState().fetchSliders().catch(() => {});
     useSettingsStore.getState().fetchNotifications().catch(() => {});
@@ -82,7 +83,7 @@ function App() {
     if (settings?.favicon) {
       const faviconLink = document.getElementById('favicon-link');
       if (faviconLink) {
-        faviconLink.href = settings.favicon;
+        faviconLink.href = getImageUrl(settings.favicon);
       }
     }
   }, [settings?.favicon]);

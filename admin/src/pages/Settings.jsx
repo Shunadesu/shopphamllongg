@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../utils/api';
+import api, { getImageUrl } from '../utils/api';
 import toast from 'react-hot-toast';
 import { FiSave, FiPhone, FiFacebook, FiMail, FiImage, FiUpload, FiLink, FiEdit2, FiTrash2, FiSearch, FiGlobe, FiSun, FiMoon } from 'react-icons/fi';
 import { FormSkeleton } from '../components/SkeletonLoader';
@@ -117,6 +117,7 @@ export default function Settings() {
     onSuccess: () => {
       queryClient.invalidateQueries(["settings"]);
       toast.success("Lưu logo thành công");
+      window.location.reload();
     },
     onError: (error) => {
       toast.error(error.response?.data?.message || "Có lỗi xảy ra");
@@ -166,9 +167,17 @@ export default function Settings() {
 
   const saveSeoMutation = useMutation({
     mutationFn: (data) => api.put('/admin/settings', data),
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries(['settings']);
       toast.success('Lưu cấu hình SEO thành công');
+      // Immediately update the favicon DOM in the admin panel
+      const faviconSetting = response.settings?.find((s) => s.key === 'favicon');
+      if (faviconSetting) {
+        const faviconLink = document.querySelector('link[rel="icon"]');
+        if (faviconLink) faviconLink.href = getImageUrl(faviconSetting.value);
+      }
+      // Reload to reflect all SEO changes (favicon, og image, etc.)
+      window.location.reload();
     },
     onError: (error) => {
       toast.error(error.response?.data?.message || 'Có lỗi xảy ra');
@@ -517,7 +526,7 @@ export default function Settings() {
               <div className="bg-slate-800 rounded-lg p-6 flex items-center justify-center min-h-[150px]">
                 {settings?.logo || logoForm.logo ? (
                   <img
-                    src={logoForm.logo || settings?.logo}
+                    src={getImageUrl(logoForm.logo || settings?.logo)}
                     alt="Logo hiện tại"
                     className="max-h-24 max-w-full object-contain"
                   />
@@ -755,7 +764,7 @@ export default function Settings() {
               </label>
               <div className="bg-slate-800 rounded-lg p-4 flex items-center gap-4 mb-3">
                 {seoForm.favicon ? (
-                  <img src={seoForm.favicon} alt="Favicon" className="w-12 h-12 object-contain" />
+                  <img src={getImageUrl(seoForm.favicon)} alt="Favicon" className="w-12 h-12 object-contain" />
                 ) : (
                   <div className="w-12 h-12 bg-slate-700 rounded flex items-center justify-center">
                     <FiImage className="text-slate-500" />
@@ -805,7 +814,7 @@ export default function Settings() {
               </label>
               <div className="bg-slate-800 rounded-lg p-4 mb-3">
                 {seoForm.ogImage ? (
-                  <img src={seoForm.ogImage} alt="OG Image" className="max-h-40 object-contain mx-auto" />
+                  <img src={getImageUrl(seoForm.ogImage)} alt="OG Image" className="max-h-40 object-contain mx-auto" />
                 ) : (
                   <div className="text-center py-4">
                     <FiImage className="w-8 h-8 text-slate-600 mx-auto mb-2" />

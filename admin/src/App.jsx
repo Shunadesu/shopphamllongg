@@ -23,7 +23,7 @@ import Promotions from './pages/Promotions';
 import PromotionForm from './pages/PromotionForm';
 import { useAuthStore } from './store/authStore';
 import SEOHead from './components/SEOHead';
-import api from './utils/api';
+import api, { getImageUrl } from './utils/api';
 
 function ProtectedRoute({ children }) {
   const { user, isAuthenticated } = useAuthStore();
@@ -44,7 +44,6 @@ function App() {
       return data;
     },
     staleTime: 10 * 60 * 1000, // 10 minutes
-    enabled: false, // Only fetch when needed, admin panel loads faster
   });
 
   // Update favicon dynamically from settings
@@ -52,7 +51,7 @@ function App() {
     if (settings?.favicon) {
       const faviconLink = document.querySelector('link[rel="icon"]');
       if (faviconLink) {
-        faviconLink.href = settings.favicon;
+        faviconLink.href = getImageUrl(settings.favicon);
       }
     }
   }, [settings?.favicon]);
