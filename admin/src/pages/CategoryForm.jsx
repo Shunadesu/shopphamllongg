@@ -71,7 +71,10 @@ export default function CategoryForm() {
       return api.post('/admin/categories', data);
     },
     onSuccess: () => {
+      // Invalidate cả 2 key để chắc chắn cả admin lẫn frontend đều refetch
+      queryClient.invalidateQueries(['categories-all']);
       queryClient.invalidateQueries(['categories']);
+      queryClient.invalidateQueries(['category']); // invalidate any cached single category
       toast.success('Tạo danh mục thành công');
       navigate('/categories');
     },
@@ -86,6 +89,8 @@ export default function CategoryForm() {
   const updateMutation = useMutation({
     mutationFn: (data) => api.put(`/admin/categories/${id}`, data),
     onSuccess: () => {
+      // Invalidate cả 2 key để chắc chắn cả admin lẫn frontend đều refetch
+      queryClient.invalidateQueries(['categories-all']);
       queryClient.invalidateQueries(['categories']);
       queryClient.invalidateQueries(['category', id]);
       toast.success('Cập nhật danh mục thành công');

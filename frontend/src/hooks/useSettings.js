@@ -1,6 +1,9 @@
 import { useEffect } from 'react';
 import { useSettingsStore } from '../store/data/settingsStore';
 
+// Helper: đảm bảo giá trị luôn là array, fallback về []
+const ensureArray = (v) => (Array.isArray(v) ? v : []);
+
 export function useSettings() {
   const settings = useSettingsStore((s) => s.settings);
   const loading = useSettingsStore((s) => s.loading.settings);
@@ -26,14 +29,14 @@ export function useSocialLinks() {
   const loading = useSettingsStore((s) => s.loading.socialLinks);
 
   useEffect(() => {
-    if (!data || useSettingsStore.getState().isStale('socialLinks')) {
+    if (!Array.isArray(data) || useSettingsStore.getState().isStale('socialLinks')) {
       useSettingsStore.getState().fetchSocialLinks().catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return {
-    data,
+    data: ensureArray(data),
     loading,
     refresh: () => useSettingsStore.getState().fetchSocialLinks(true),
   };
@@ -51,7 +54,7 @@ export function useSliders() {
   }, []);
 
   return {
-    data,
+    data: data || { leftSliders: [], rightBanner: null },
     loading,
     refresh: () => useSettingsStore.getState().fetchSliders(true),
   };
@@ -62,14 +65,14 @@ export function useNotifications() {
   const loading = useSettingsStore((s) => s.loading.notifications);
 
   useEffect(() => {
-    if (!data || useSettingsStore.getState().isStale('notifications')) {
+    if (!Array.isArray(data) || useSettingsStore.getState().isStale('notifications')) {
       useSettingsStore.getState().fetchNotifications().catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return {
-    data,
+    data: ensureArray(data),
     loading,
     refresh: () => useSettingsStore.getState().fetchNotifications(true),
   };

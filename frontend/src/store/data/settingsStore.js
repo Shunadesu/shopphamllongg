@@ -45,18 +45,26 @@ export const useSettingsStore = create(
 
       fetchSocialLinks: async (force = false) => {
         const state = get();
-        if (!force && state.socialLinks.length > 0 && !state.isStale('socialLinks')) {
+        if (!force && Array.isArray(state.socialLinks) && state.socialLinks.length > 0 && !state.isStale('socialLinks')) {
           return state.socialLinks;
         }
         set((s) => ({ loading: { ...s.loading, socialLinks: true } }));
         try {
           const { data } = await api.get('/social-links');
+          // Ép về array nếu API trả object
+          let arr = data;
+          if (!Array.isArray(arr)) {
+            if (Array.isArray(arr?.socialLinks)) arr = arr.socialLinks;
+            else if (Array.isArray(arr?.data)) arr = arr.data;
+            else if (Array.isArray(arr?.items)) arr = arr.items;
+            else arr = [];
+          }
           set((s) => ({
-            socialLinks: data || [],
+            socialLinks: arr,
             lastFetched: { ...s.lastFetched, socialLinks: Date.now() },
             loading: { ...s.loading, socialLinks: false },
           }));
-          return data;
+          return arr;
         } catch (err) {
           set((s) => ({ loading: { ...s.loading, socialLinks: false }, error: err }));
           throw err;
@@ -85,18 +93,26 @@ export const useSettingsStore = create(
 
       fetchNotifications: async (force = false) => {
         const state = get();
-        if (!force && state.notifications.length > 0 && !state.isStale('notifications')) {
+        if (!force && Array.isArray(state.notifications) && state.notifications.length > 0 && !state.isStale('notifications')) {
           return state.notifications;
         }
         set((s) => ({ loading: { ...s.loading, notifications: true } }));
         try {
           const res = await api.get('/settings/notifications');
+          // Ép về array
+          let arr = res.data;
+          if (!Array.isArray(arr)) {
+            if (Array.isArray(arr?.notifications)) arr = arr.notifications;
+            else if (Array.isArray(arr?.data)) arr = arr.data;
+            else if (Array.isArray(arr?.items)) arr = arr.items;
+            else arr = [];
+          }
           set((s) => ({
-            notifications: res.data || [],
+            notifications: arr,
             lastFetched: { ...s.lastFetched, notifications: Date.now() },
             loading: { ...s.loading, notifications: false },
           }));
-          return res.data;
+          return arr;
         } catch (err) {
           set((s) => ({ loading: { ...s.loading, notifications: false }, error: err }));
           throw err;

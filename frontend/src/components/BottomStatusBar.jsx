@@ -50,7 +50,8 @@ const BottomStatusBar = () => {
 
   // Merge real depositors with mock data, sort, take top 10
   const topDepositors = useMemo(() => {
-    const realDepositors = (depositorsData || []).map(d => ({ ...d, isMock: false }));
+    const safeData = Array.isArray(depositorsData) ? depositorsData : [];
+    const realDepositors = safeData.map(d => ({ ...d, isMock: false }));
     const allDepositors = [...realDepositors];
 
     MOCK_TOP_DEPOSITORS.forEach(mock => {

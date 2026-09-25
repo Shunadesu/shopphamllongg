@@ -6,7 +6,7 @@ const AccountCard = ({ account, onBuyNow }) => {
     <div className="card hover:shadow-lg hover:shadow-primary/10 hover:-translate-y-1 transition-all duration-300 group relative">
       {/* Image */}
       <Link to={`/account/${account._id}`} className="block">
-        <div className="relative overflow-hidden rounded-lg mb-2">
+        <div className="relative overflow-hidden rounded-lg mb-2 aspect-video">
           <img
             src={getImageUrl(account.images?.[0]) || '/placeholder.jpg'}
             alt={account.title}

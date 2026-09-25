@@ -55,11 +55,16 @@ const SubcategoryGrid = ({ parentCategory, subcategories, onSelectSubcategory, a
               className="category-card"
             >
               {subcategory.thumbnail ? (
-                <img
-                  src={getImageUrl(subcategory.thumbnail)}
-                  alt={subcategory.name}
-                  className="w-full h-auto object-cover rounded-lg mb-2"
-                />
+                <div
+                  className="relative w-full overflow-hidden rounded-lg mb-2 bg-slate-200 dark:bg-slate-800"
+                  style={{ aspectRatio: '16 / 9' }}
+                >
+                  <img
+                    src={getImageUrl(subcategory.thumbnail)}
+                    alt={subcategory.name}
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                </div>
               ) : (
                 <div className="w-full h-24 rounded-t-lg mb-2 bg-gradient-to-br from-blue-700 via-blue-600 to-sky-300 flex items-center justify-center">
                   <span className="text-white text-xl font-bold opacity-50">

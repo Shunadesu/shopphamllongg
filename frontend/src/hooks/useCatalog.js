@@ -5,6 +5,10 @@ export function useCategories() {
   const data = useCatalogStore((s) => s.categories);
   const loading = useCatalogStore((s) => s.loading);
 
+  // Cache chỉ trong memory (không persist) nên:
+  // - Reload page → store rỗng → tự fetch lại API
+  // - Điều hướng route trong cùng session → dùng cache trong 1 phút (TTL)
+  // - Sau 1 phút trong cùng session → refetch nếu component mount
   useEffect(() => {
     if (!data || data.length === 0 || useCatalogStore.getState().isStale()) {
       useCatalogStore.getState().fetchCategories().catch(() => {});
@@ -15,7 +19,6 @@ export function useCategories() {
   return {
     data: data || [],
     loading,
-    refresh: () => useCatalogStore.getState().fetchCategories(true),
   };
 }
 
@@ -38,7 +41,6 @@ export function useSubcategories(parentId) {
   return {
     data: subcategories,
     loading,
-    refresh: () => fetchCategories(true),
   };
 }
 
