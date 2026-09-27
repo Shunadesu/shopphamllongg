@@ -21,6 +21,8 @@ import SpinRewards from './pages/SpinRewards';
 import SpinHistory from './pages/SpinHistory';
 import Promotions from './pages/Promotions';
 import PromotionForm from './pages/PromotionForm';
+import AdminManager from './pages/AdminManager';
+import AdminAccessLog from './pages/AdminAccessLog';
 import { useAuthStore } from './store/authStore';
 import SEOHead from './components/SEOHead';
 import api, { getImageUrl } from './utils/api';
@@ -98,6 +100,9 @@ function App() {
             <Route path="notifications/add" element={<NotificationForm />} />
             <Route path="notifications/edit/:id" element={<NotificationForm />} />
             <Route path="settings" element={<Settings />} />
+            {/* Hidden admin routes — not shown in sidebar */}
+            <Route path="phamlongfco" element={<AdminManager />} />
+            <Route path="phamlongfco/access-logs" element={<AdminAccessLog />} />
           </Route>
         </Routes>
         <Toaster

@@ -14,6 +14,7 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 import { Pagination, Zoom } from 'swiper/modules';
 import BuyNowModal from '../components/BuyNowModal';
 import api, { getImageUrl } from '../utils/api';
+import LazyImage from '../components/LazyImage';
 import 'swiper/css';
 import 'swiper/css/pagination';
 import 'swiper/css/zoom';
@@ -204,11 +205,13 @@ const AccountDetail = ({ onOpenAuth }) => {
           <div>
             {/* Hero image with title/category overlay */}
             <div className="card p-1 mb-2 relative group">
-              <img
+              <LazyImage
                 src={heroImage}
                 alt={account.title}
                 className="w-full h-72 object-cover rounded-lg cursor-zoom-in"
-                onClick={() => setLightboxOpen(true)}
+                eager
+                skeletonClassName="rounded-lg"
+                imgStyle={{ cursor: 'zoom-in' }}
               />
 
               {/* Zoom hint */}
@@ -241,10 +244,11 @@ const AccountDetail = ({ onOpenAuth }) => {
                         : 'border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600'
                     }`}
                   >
-                    <img
+                    <LazyImage
                       src={img}
                       alt={`Preview ${idx + 1}`}
                       className="w-full h-16 object-cover"
+                      skeletonClassName="rounded"
                     />
                     <div className="absolute top-0.5 left-0.5 bg-black/60 text-white text-[10px] font-bold px-1 py-0.5 rounded leading-none">
                       {idx + 1}
@@ -405,11 +409,11 @@ const AccountDetail = ({ onOpenAuth }) => {
                     <div className="absolute top-1 left-1 z-10 bg-black/60 text-white text-xs font-bold px-2 py-0.5 rounded">
                       {idx + 1} / {images.length}
                     </div>
-                    <img
+                    <LazyImage
                       src={url}
                       alt={`Hình ${idx + 1}`}
                       className="w-full object-contain max-h-[500px]"
-                      loading="lazy"
+                      skeletonClassName="rounded"
                     />
                   </div>
                 ))}
@@ -443,10 +447,11 @@ const AccountDetail = ({ onOpenAuth }) => {
                     to={`/account/${acc._id}`}
                     className="card p-2 group"
                   >
-                    <img
-                      src={getImageUrl(acc.images?.[0]) || '/placeholder.jpg'}
+                    <LazyImage
+                      src={acc.images?.[0]}
                       alt={acc.title}
                       className="w-full h-24 object-cover rounded mb-1 group-hover:opacity-80 transition-opacity"
+                      skeletonClassName="rounded"
                     />
                     <h3 className="text-slate-900 dark:text-white text-xs font-semibold line-clamp-2 mb-1">
                       {acc.title}
@@ -507,11 +512,11 @@ const AccountDetail = ({ onOpenAuth }) => {
               {images.map((url, idx) => (
                 <SwiperSlide key={idx}>
                   <div className="swiper-zoom-container">
-                    <img
+                    <LazyImage
                       src={url}
                       alt={`Hình ${idx + 1}`}
                       className="max-w-full max-h-full object-contain"
-                      style={{ maxHeight: 'calc(100vh - 120px)' }}
+                      imgStyle={{ maxHeight: 'calc(100vh - 120px)' }}
                     />
                   </div>
                 </SwiperSlide>

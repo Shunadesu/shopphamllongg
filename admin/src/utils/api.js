@@ -76,4 +76,12 @@ api.uploadImages = (files) => {
   });
 };
 
+// Admin management
+export const getAdmins = () => api.get('/admin/admins');
+export const createAdmin = (data) => api.post('/admin/admins', data);
+export const deleteAdmin = (id) => api.delete(`/admin/admins/${id}`);
+
+// Admin access logs
+export const getAdminAccessLogs = (params) => api.get('/admin/admins/access-logs', { params });
+
 export default api;

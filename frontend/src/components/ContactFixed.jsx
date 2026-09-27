@@ -1,4 +1,5 @@
 import { FiPhone } from 'react-icons/fi';
+import LazyImage from './LazyImage';
 
 const MessengerIcon = () => (
   <svg viewBox="0 0 24 24" className="w-6 h-6 text-white" fill="currentColor">
@@ -7,7 +8,13 @@ const MessengerIcon = () => (
 );
 
 const ZaloIcon = () => (
- <img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/91/Icon_of_Zalo.svg/3840px-Icon_of_Zalo.svg.png?utm_source=vi.wikipedia.org&utm_campaign=index&utm_content=thumbnail" alt="" />
+ <LazyImage
+   src="https://thumb.wikimedia.org/wikipedia/commons/thumb/9/91/Icon_of_Zalo.svg/3840px-Icon_of_Zalo.svg.png?utm_source=vi.wikipedia.org&utm_campaign=index&utm_content=thumbnail"
+   alt=""
+   className="w-6 h-6"
+   eager
+   skeletonClassName=""
+ />
 );
 
 const ContactFixed = () => {

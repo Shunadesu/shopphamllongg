@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { getImageUrl } from '../utils/api';
+import LazyImage from './LazyImage';
 
 const AccountCard = ({ account, onBuyNow }) => {
   return (
@@ -7,10 +7,13 @@ const AccountCard = ({ account, onBuyNow }) => {
       {/* Image */}
       <Link to={`/account/${account._id}`} className="block">
         <div className="relative overflow-hidden rounded-lg mb-2 aspect-video">
-          <img
-            src={getImageUrl(account.images?.[0]) || '/placeholder.jpg'}
+          <LazyImage
+            src={account.images?.[0]}
             alt={account.title}
             className="w-full h-32 object-cover group-hover:scale-110 transition-transform duration-300"
+            skeletonClassName="rounded-lg"
+            width={320}
+            height={180}
           />
           {account.status === 'sold' && (
             <div className="absolute inset-0 bg-black/60 flex items-center justify-center">

@@ -3,6 +3,7 @@ import { FaTimes, FaGift, FaCoins, FaTicketAlt, FaGamepad } from 'react-icons/fa
 import Confetti from 'react-confetti';
 import { useState, useEffect } from 'react';
 import { getImageUrl } from '../utils/api';
+import LazyImage from './LazyImage';
 
 const SpinResultModal = ({ isOpen, onClose, result }) => {
   const [showConfetti, setShowConfetti] = useState(false);
@@ -114,10 +115,11 @@ const SpinResultModal = ({ isOpen, onClose, result }) => {
               {result.type === 'account' && result.account && (
                 <div className="mt-4">
                   <div className="w-20 h-20 mx-auto rounded-lg overflow-hidden border-2 border-sky-500">
-                    <img 
-                      src={getImageUrl(result.account.images?.[0])} 
+                    <LazyImage
+                      src={result.account.images?.[0]}
                       alt={result.account.title}
                       className="w-full h-full object-cover"
+                      skeletonClassName="rounded-lg"
                     />
                   </div>
                   <p className="text-sm text-slate-400 mt-2">

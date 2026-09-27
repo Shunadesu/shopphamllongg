@@ -1,5 +1,5 @@
 import { Routes, Route, useLocation, Navigate, useParams } from 'react-router-dom';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import ContactFixed from './components/ContactFixed';
@@ -7,13 +7,14 @@ import BottomStatusBar from './components/BottomStatusBar';
 import ProtectedRoute from './components/ProtectedRoute';
 import NotificationModal from './components/NotificationModal';
 import SEOHead from './components/SEOHead';
+import Loading from './components/Loading';
 import { useThemeStore } from './store/themeStore';
 import { useSettingsStore } from './store/data/settingsStore';
 import { useCartStore } from './store/cartStore';
 import { getImageUrl } from './utils/api';
 
-// Pages
-import Home from './pages/Home';
+// Pages — Home is lazy-loaded to reduce initial bundle
+const Home = lazy(() => import('./pages/Home'));
 import Shop from './pages/Shop';
 import AccountDetail from './pages/AccountDetail';
 import Cart from './pages/Cart';
@@ -70,18 +71,46 @@ function App() {
     }
   }, []);
 
-  // Listen for settings updates from admin panel (cross-tab) and re-fetch
+  // ── Favicon sync ──────────────────────────────────────────────────────────
+  // Track the last applied favicon value and its cache-busting timestamp.
+  // Using refs (not state) avoids a stale-closure issue where the effect
+  // captures the old `settings` value even after a re-render.
+  const prevFavicon = useRef(null);
+  const faviconTs = useRef(null);
+
+  // Update favicon whenever settings change.  Guards against:
+  //  1. Running on first mount before settings are loaded (skipped — prevFavicon starts null)
+  //  2. Running when settings.favicon transitions null → value
+  //  3. Running when admin saves a new favicon (value changes → DOM updated with fresh timestamp)
   useEffect(() => {
-    const handleSettingsUpdated = () => {
+    const next = settings?.favicon;
+    if (!next || next === prevFavicon.current) return;
+    prevFavicon.current = next;
+    faviconTs.current = Date.now();
+    const el = document.getElementById('favicon-link');
+    if (el) el.href = `${getImageUrl(next)}?t=${faviconTs.current}`;
+  }, [settings?.favicon, settings]);
+
+  // Polling fallback: re-fetch settings every 30 s so a user who opened the page
+  // BEFORE the admin saved a new favicon still sees it within half a minute.
+  useEffect(() => {
+    const id = setInterval(() => {
+      useSettingsStore.getState().fetchSettings(true).catch(() => {});
+    }, 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Listen for cross-tab settings-updated signal dispatched by the admin panel.
+  useEffect(() => {
+    const onStorage = () => {
       useSettingsStore.getState().clearCache();
       useSettingsStore.getState().fetchSettings(true).catch(() => {});
     };
-    window.addEventListener('storage', handleSettingsUpdated);
-    // Also listen for custom event (same-tab fallback)
-    window.addEventListener('settings-updated', handleSettingsUpdated);
+    window.addEventListener('storage', onStorage);
+    window.addEventListener('settings-updated', onStorage);
     return () => {
-      window.removeEventListener('storage', handleSettingsUpdated);
-      window.removeEventListener('settings-updated', handleSettingsUpdated);
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('settings-updated', onStorage);
     };
   }, []);
 
@@ -107,16 +136,6 @@ function App() {
       applyDefaultTheme(settings.defaultTheme || 'light');
     }
   }, [settings, applyDefaultTheme]);
-
-  // Update favicon dynamically from settings — appends ?t=timestamp to bust browser favicon cache
-  useEffect(() => {
-    if (settings?.favicon) {
-      const faviconLink = document.getElementById('favicon-link');
-      if (faviconLink) {
-        faviconLink.href = `${getImageUrl(settings.favicon)}?t=${Date.now()}`;
-      }
-    }
-  }, [settings?.favicon]);
 
   // Drawer handlers
   const handleOpenAuth = useCallback((view = 'login') => {
@@ -176,7 +195,7 @@ function App() {
           <Route path="/orders/:id" element={<RedirectWithParams paramName="orderId" />} />
 
           {/* Public Routes */}
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<Suspense fallback={<Loading />}><Home /></Suspense>} />
           <Route path="/shop" element={<Shop />} />
           <Route path="/shop/:categorySlug" element={<Shop />} />
           <Route path="/account/:id" element={<AccountDetail onOpenAuth={handleOpenAuth} />} />

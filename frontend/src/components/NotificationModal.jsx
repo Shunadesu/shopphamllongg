@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FiX } from 'react-icons/fi';
 import { useNotifications } from '../hooks';
-import { getImageUrl } from '../utils/api';
+import LazyImage from './LazyImage';
 
 const STORAGE_KEY = 'notification_dismissed';
 const STORAGE_TIME_KEY = 'notification_dismissed_time';
@@ -86,10 +86,11 @@ export default function NotificationModal() {
           {/* Image */}
           {currentNotification.image && (
             <div className="relative mb-4 overflow-hidden rounded-xl">
-              <img
-                src={getImageUrl(currentNotification.image)}
+              <LazyImage
+                src={currentNotification.image}
                 alt={currentNotification.title}
                 className="w-full h-auto object-cover"
+                skeletonClassName="rounded-xl"
               />
             </div>
           )}

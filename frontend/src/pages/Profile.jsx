@@ -14,6 +14,7 @@ import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { getImageUrl } from '../utils/api';
+import LazyImage from '../components/LazyImage';
 import {
   FiUser,
   FiAtSign,
@@ -566,11 +567,11 @@ const OrderCard = ({ order, onOpenDetail }) => (
                 key={idx}
                 className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl min-w-0 shrink-0"
               >
-                <img
-                  src={getImageUrl(item.accountId.images?.[0])}
+                <LazyImage
+                  src={item.accountId.images?.[0]}
                   alt=""
                   className="w-8 h-8 rounded object-cover shrink-0"
-                  onError={(e) => { e.target.src = '/placeholder.jpg'; }}
+                  skeletonClassName="rounded"
                 />
                 <span className="text-slate-700 dark:text-slate-300 text-xs line-clamp-1 max-w-[120px]">
                   {item.accountId.title}
@@ -722,11 +723,11 @@ const OrderDetailSection = ({ orderId, onBack }) => {
               {order.items?.map((item, idx) => (
                 item.accountId && (
                   <div key={idx} className="flex gap-3 pb-3 border-b border-slate-200 dark:border-slate-700 last:border-0 last:pb-0">
-                    <img
-                      src={getImageUrl(item.accountId.images?.[0])}
+                    <LazyImage
+                      src={item.accountId.images?.[0]}
                       alt=""
                       className="w-12 h-12 rounded-lg object-cover shrink-0"
-                      onError={(e) => { e.target.src = '/placeholder.jpg'; }}
+                      skeletonClassName="rounded-lg"
                     />
                     <div className="min-w-0">
                       <p className="text-slate-900 dark:text-white text-sm font-medium line-clamp-1">
@@ -773,11 +774,11 @@ const AccountItem = ({ item, orderStatus, showPasswords, onTogglePassword, onCop
   return (
     <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-dark-light p-5">
       <div className="flex gap-4 mb-4">
-        <img
-          src={getImageUrl(acc.images?.[0])}
+        <LazyImage
+          src={acc.images?.[0]}
           alt={acc.title}
           className="w-24 h-24 rounded-xl object-cover shrink-0"
-          onError={(e) => { e.target.src = '/placeholder.jpg'; }}
+          skeletonClassName="rounded-xl"
         />
         <div className="flex-1 min-w-0">
           <h4 className="text-slate-900 dark:text-white font-bold text-base mb-2 line-clamp-2">{acc.title}</h4>
@@ -968,10 +969,11 @@ const PurchasedAccountItem = ({ item, showPasswords, setShowPasswords }) => {
   return (
     <div className="bg-slate-100 dark:bg-slate-800/50 rounded-lg p-4">
       <div className="flex flex-col md:flex-row gap-4">
-        <img
-          src={getImageUrl(acc.images?.[0]) || '/placeholder.jpg'}
+        <LazyImage
+          src={acc.images?.[0]}
           alt={acc.title}
           className="w-full md:w-32 h-32 object-cover rounded-lg shrink-0"
+          skeletonClassName="rounded-lg"
         />
         <div className="flex-grow min-w-0">
           <div className="flex items-start justify-between mb-3 gap-2">

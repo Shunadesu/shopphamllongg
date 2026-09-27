@@ -13,6 +13,21 @@ export const getImageUrl = (path) => {
   return `${imageBaseURL}${path}`;
 };
 
+// Generate responsive image srcSet string
+// widths: array of widths in pixels (e.g. [320, 640, 960])
+// NOTE: This assumes the server supports ?w= query param for resizing.
+// If not supported, the browser will ignore extra srcSet entries and use src.
+export const getResponsiveImageUrl = (path, widths = [320, 640, 960]) => {
+  if (!path) return '';
+  const base = getImageUrl(path);
+  if (!base) return '';
+  // If already a full external URL that doesn't support resize params, skip srcSet
+  if (base.startsWith('https://img.youtube.com') || base.startsWith('http://')) {
+    return base;
+  }
+  return widths.map((w) => `${base}?w=${w} ${w}w`).join(', ');
+};
+
 // Export imageBaseURL để sử dụng ở nơi khác
 export { imageBaseURL };
 

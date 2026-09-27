@@ -1,6 +1,7 @@
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay, Pagination, Navigation } from 'swiper/modules';
 import { getImageUrl } from '../utils/api';
+import LazyImage from './LazyImage';
 import 'swiper/css';
 import 'swiper/css/pagination';
 import 'swiper/css/navigation';
@@ -34,10 +35,11 @@ const Slider = ({ slides }) => {
               className="block"
             >
               <div className="relative h-64 md:h-96">
-                <img
-                  src={getImageUrl(slide.image)}
+                <LazyImage
+                  src={slide.image}
                   alt={slide.title}
                   className="w-full h-full object-cover"
+                  eager
                 />
                 {slide.title && (
                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">

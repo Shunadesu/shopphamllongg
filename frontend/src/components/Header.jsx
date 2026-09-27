@@ -8,6 +8,7 @@ import { useUserProfile } from '../hooks/useUserProfile';
 import { useUserStore } from '../store/data/userStore';
 import AuthDrawer from './AuthDrawer';
 import CartDrawer from './CartDrawer';
+import LazyImage from './LazyImage';
 import { FiShoppingCart, FiUser, FiLogOut, FiMenu, FiSun, FiMoon, FiPlus } from 'react-icons/fi';
 import { GiSpinningBlades } from 'react-icons/gi';
 
@@ -79,10 +80,11 @@ const Header = ({ onOpenAuth, onOpenCart, isAuthOpen, isCartOpen, onCloseAuth, o
             {/* Logo */}
             <Link to="/" className="flex items-center space-x-2">
               {settings?.logo ? (
-                <img
+                <LazyImage
                   src={settings.logo}
                   alt="Shopphamlong"
                   className="h-12 w-auto object-contain"
+                  eager
                 />
               ) : (
                 <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-dark rounded-lg flex items-center justify-center">

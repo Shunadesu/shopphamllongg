@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useCallback } from 'react';
 import { useAccountListStore, accountListParamsKey } from '../store/data/accountListStore';
 import { useAccountDetailStore } from '../store/data/accountDetailStore';
 
@@ -21,12 +21,19 @@ export function useAccountList(params = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
+  // Helper: fetch a specific page using the same filter params but different page
+  const setPage = useCallback((page) => {
+    const mergedParams = { ...params, page };
+    useAccountListStore.getState().fetchAccounts(mergedParams, true).catch(() => {});
+  }, [params]);
+
   return {
     data: entry?.data || null,
     accounts: entry?.accounts || [],
     pagination: entry?.pagination || null,
     loading: !!loading,
     refresh: () => useAccountListStore.getState().fetchAccounts(params, true),
+    setPage,
   };
 }
 

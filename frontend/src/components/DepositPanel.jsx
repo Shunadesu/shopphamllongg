@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import Confetti from 'react-confetti';
 import api, { getImageUrl } from '../utils/api';
+import LazyImage from './LazyImage';
 import { getVietqrBankCode } from '../utils/bankUtils';
 import { useAuthStore } from '../store/authStore';
 import { useDepositStore } from '../store/data/depositStore';
@@ -507,7 +508,7 @@ const DepositPanel = ({ user }) => {
                   </div>
                 ) : bankInfo.qrCodeImage ? (
                   <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border-2 border-primary/20 inline-block">
-                    <img src={getImageUrl(bankInfo.qrCodeImage)} alt={`QR ${bankInfo.bankName}`} className="w-56 h-56 sm:w-64 sm:h-64 mx-auto object-contain" />
+                    <LazyImage src={bankInfo.qrCodeImage} alt={`QR ${bankInfo.bankName}`} className="w-56 h-56 sm:w-64 sm:h-64 mx-auto object-contain" skeletonClassName="rounded-xl" />
                   </div>
                 ) : (
                   <div className="w-48 h-48 mx-auto bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center">

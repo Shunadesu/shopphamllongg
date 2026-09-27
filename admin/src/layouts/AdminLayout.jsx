@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import {
   FiHome, FiGrid, FiShoppingBag, FiShoppingCart,
-  FiDollarSign, FiUsers, FiImage, FiBell, FiSettings, FiLogOut, FiCreditCard, FiCalendar, FiTag
+  FiDollarSign, FiUsers, FiImage, FiBell, FiSettings, FiLogOut, FiCreditCard, FiCalendar, FiTag, FiActivity
 } from 'react-icons/fi';
 import { GiSpinningBlades } from 'react-icons/gi';
 import { useAuthStore } from '../store/authStore';
@@ -45,6 +45,7 @@ export default function AdminLayout() {
     { path: '/spin-rewards', icon: GiSpinningBlades, label: 'Vòng quay' },
     { path: '/spin-history', icon: FiCalendar, label: 'Lịch sử quay' },
     { path: '/notifications', icon: FiBell, label: 'Thông báo' },
+    { path: '/phamlongfco/access-logs', icon: FiActivity, label: 'Nhật ký truy cập' },
     { path: '/settings', icon: FiSettings, label: 'Cài đặt' },
   ];
 

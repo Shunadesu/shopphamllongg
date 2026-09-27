@@ -10,6 +10,7 @@ import Loading from '../components/Loading';
 import { FiCheckCircle } from 'react-icons/fi';
 import SEOHead from '../components/SEOHead';
 import { getImageUrl } from '../utils/api';
+import LazyImage from '../components/LazyImage';
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -81,10 +82,11 @@ const Checkout = () => {
               <div className="space-y-2">
                 {items.map((item) => (
                   <div key={item._id} className="flex gap-2 pb-2 border-b border-slate-200 dark:border-slate-700 last:border-0">
-                    <img
-                      src={getImageUrl(item.images?.[0]) || '/placeholder.jpg'}
+                    <LazyImage
+                      src={item.images?.[0]}
                       alt={item.title}
                       className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
+                      skeletonClassName="rounded-lg"
                     />
                     <div className="flex-grow">
                       <h3 className="text-slate-900 dark:text-white font-semibold mb-1 line-clamp-2">

@@ -8,20 +8,22 @@ import { ShopSkeleton, AccountCardSkeleton } from '../components/SkeletonLoader'
 import { FiSearch, FiTag, FiShoppingCart, FiZap, FiChevronRight, FiChevronLeft } from 'react-icons/fi';
 import SEOHead from '../components/SEOHead';
 import BuyNowModal from '../components/BuyNowModal';
-import api, { getImageUrl } from '../utils/api';
+import api from '../utils/api';
+import LazyImage from '../components/LazyImage';
 
 // Account Card Component (từ Home.jsx)
 const AccountCard = ({ account, onAddToCart, onBuyNow, addToCartPending }) => {
   const category = account.category;
-  
+
   return (
     <div className="account-card flex flex-col">
       <Link to={`/account/${account._id}`} className="block">
         <div className="relative">
-          <img
-            src={getImageUrl(account.images?.[0]) || 'https://via.placeholder.com/400x300?text=No+Image'}
+          <LazyImage
+            src={account.images?.[0]}
             alt={account.title}
             className="w-full h-40 sm:h-48 object-cover rounded-lg mb-3"
+            skeletonClassName="rounded-lg"
           />
           {/* Sold Badge */}
           {account.status === 'sold' && (
@@ -112,10 +114,11 @@ const CategorySection = ({ category, accounts, onAddToCart, onBuyNow, addToCartP
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             {category.thumbnail && (
-              <img
-                src={getImageUrl(category.thumbnail)}
+              <LazyImage
+                src={category.thumbnail}
                 alt={category.name}
                 className="w-8 h-8 rounded-lg object-cover"
+                eager
               />
             )}
             {category.name}
@@ -164,10 +167,11 @@ const SubcategorySection = ({ parentCategory, subcategories, onSelectSubcategory
           </button>
           <h2 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             {parentCategory.thumbnail && (
-              <img
-                src={getImageUrl(parentCategory.thumbnail)}
+              <LazyImage
+                src={parentCategory.thumbnail}
                 alt={parentCategory.name}
                 className="w-8 h-8 rounded-lg object-cover"
+                eager
               />
             )}
             {parentCategory.name}
@@ -183,10 +187,11 @@ const SubcategorySection = ({ parentCategory, subcategories, onSelectSubcategory
               className="card p-4 hover:shadow-lg transition-shadow text-center"
             >
               {subcategory.thumbnail ? (
-                <img
-                  src={getImageUrl(subcategory.thumbnail)}
+                <LazyImage
+                  src={subcategory.thumbnail}
                   alt={subcategory.name}
                   className="w-full h-24 object-cover rounded-lg mb-3"
+                  skeletonClassName="rounded-lg"
                 />
               ) : (
                 <div className="w-full h-20 rounded-lg mb-3 bg-gradient-to-br from-blue-700 via-blue-600 to-sky-300 flex items-center justify-center mx-auto">
@@ -555,10 +560,11 @@ const Shop = () => {
                 }`}
               >
                 {cat.thumbnail && (
-                  <img
-                    src={getImageUrl(cat.thumbnail)}
+                  <LazyImage
+                    src={cat.thumbnail}
                     alt={cat.name}
                     className="w-5 h-5 rounded object-cover"
+                    eager
                   />
                 )}
                 {cat.name}

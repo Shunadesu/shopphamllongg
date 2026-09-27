@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSliders, useCategories, useAccountList, useHasSubcategories } from '../hooks';
 import { FiChevronRight, FiChevronLeft, FiSearch, FiX } from 'react-icons/fi';
@@ -7,15 +7,20 @@ import AccountCard from '../components/AccountCard';
 import { AccountCardSkeleton } from '../components/SkeletonLoader';
 import BuyNowModal from '../components/BuyNowModal';
 import { useAuthStore } from '../store/authStore';
-import api, { getImageUrl } from '../utils/api';
+import api from '../utils/api';
+import { getResponsiveImageUrl } from '../utils/api';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay, Pagination } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/pagination';
 import { toYoutubeEmbedUrl } from '../utils/banner';
 import toast from 'react-hot-toast';
+import LazyImage from '../components/LazyImage';
+import CategoryAccountSection from '../components/CategoryAccountSection';
+import SubcategoryGrid from '../components/SubcategoryGrid';
+import PaginationNav from '../components/Pagination';
 
-// Skeleton loader components
+// Skeleton loader for category cards
 const SkeletonCategoryCard = () => (
   <div className="card animate-pulse">
     <div className="w-full h-40 bg-slate-200 dark:bg-slate-700 rounded-t-lg mb-2" />
@@ -24,195 +29,58 @@ const SkeletonCategoryCard = () => (
   </div>
 );
 
-// Subcategory Grid Component
-const SubcategoryGrid = ({ parentCategory, subcategories, onSelectSubcategory, accountsByCategory }) => {
-  return (
-    <section className="py-2">
-      <div className="container-custom">
-        {/* Header (no back button - click another category to switch) */}
-        <div className="flex items-center gap-3 mb-4">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            {parentCategory.thumbnail && (
-              <img
-                src={getImageUrl(parentCategory.thumbnail)}
-                alt={parentCategory.name}
-                className="w-6 h-6 rounded object-cover"
-              />
-            )}
-            {parentCategory.name}
-          </h2>
-        </div>
+// YouTube iframe that only loads when user clicks play — saves ~500KB of JS
+const YouTubeLazyEmbed = ({ embedUrl, title }) => {
+  const [playing, setPlaying] = useState(false);
+  // Derive thumbnail from YouTube video ID
+  const videoId = embedUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/)?.[1];
+  const thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : null;
 
-        {/* Subcategories Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-          {subcategories.map((subcategory) => {
-            const accountCount = (accountsByCategory[subcategory._id] || []).length;
-            
-            return (
-            <button
-              key={subcategory._id}
-              onClick={() => onSelectSubcategory(subcategory)}
-              className="category-card"
-            >
-              {subcategory.thumbnail ? (
-                <div
-                  className="relative w-full overflow-hidden rounded-lg mb-2 bg-slate-200 dark:bg-slate-800"
-                  style={{ aspectRatio: '16 / 9' }}
-                >
-                  <img
-                    src={getImageUrl(subcategory.thumbnail)}
-                    alt={subcategory.name}
-                    className="absolute inset-0 w-full h-full object-cover"
-                  />
-                </div>
-              ) : (
-                <div className="w-full h-24 rounded-t-lg mb-2 bg-gradient-to-br from-blue-700 via-blue-600 to-sky-300 flex items-center justify-center">
-                  <span className="text-white text-xl font-bold opacity-50">
-                    {subcategory.name.charAt(0)}
-                  </span>
-                </div>
-              )}
-              <h3 className="text-slate-900 bg-primary text-transparent p-2 dark:text-white text-sm font-semibold text-center">
-                {subcategory.name}
-              </h3>
-              {subcategory.description && (
-                <p className="text-slate-500 dark:text-slate-400 text-xs text-center mt-1 line-clamp-2">
-                  {subcategory.description}
-                </p>
-              )}
-              <span className="category-count__label text-center block mt-1 text-primary">
-                {accountCount > 0 ? `${accountCount} tài khoản` : 'Sắp có'}
-              </span>
-            </button>
-          );
-          })}
-        </div>
-      </div>
-    </section>
-  );
-};
-
-// Category Section Component
-const CategoryAccountSection = ({ category, accounts, isLoading, onSelectSubcategory, selectedSubcategoryId }) => {
-  const hasSubcategories = category.subcategories && category.subcategories.length > 0;
-  const [activeSubcategory, setActiveSubcategory] = useState(null);
-
-  // Filter accounts by active subcategory
-  const filteredAccounts = useMemo(() => {
-    if (!activeSubcategory) return accounts;
-    return accounts.filter(acc => acc.category?._id === activeSubcategory._id);
-  }, [accounts, activeSubcategory]);
-
-  const handleSubcategoryClick = (sub) => {
-    const newSub = activeSubcategory?._id === sub._id ? null : sub;
-    setActiveSubcategory(newSub);
-    onSelectSubcategory?.(newSub);
-  };
-
-  if (isLoading) {
+  if (playing) {
     return (
-      <section className="py-2">
-        <div className="container-custom">
-          <div className="flex items-center justify-between mb-2">
-            <div className="h-5 bg-slate-200 dark:bg-slate-700 rounded w-32 animate-pulse" />
-            <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-20 animate-pulse" />
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            {[1, 2, 3, 4].map((i) => (
-              <AccountCardSkeleton key={i} />
-            ))}
-          </div>
-        </div>
-      </section>
+      <iframe
+        src={`${embedUrl}&autoplay=1`}
+        title={title}
+        className="w-full h-full"
+        style={{ aspectRatio: '16/9' }}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+      />
     );
   }
 
-  if (!accounts || accounts.length === 0) return null;
-
   return (
-    <section className="py-2">
-      <div className="container-custom">
-        {/* Section Header */}
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            {category.thumbnail && (
-              <img
-                src={getImageUrl(category.thumbnail)}
-                alt={category.name}
-                className="w-6 h-6 rounded object-cover"
-              />
-            )}
-            {category.name}
-            {activeSubcategory && (
-              <span className="text-sm font-normal text-primary">
-                / {activeSubcategory.name}
-              </span>
-            )}
-          </h2>
-          <Link
-            to={`/shop?category=${category._id}${activeSubcategory ? `&subcategory=${activeSubcategory._id}` : ''}`}
-            className="text-primary hover:text-primary-light flex items-center gap-1 text-xs font-medium transition-colors"
-          >
-            <span>Xem tất cả</span>
-            <FiChevronRight className="w-3 h-3" />
-          </Link>
+    <button
+      onClick={() => setPlaying(true)}
+      className="relative w-full overflow-hidden rounded-md bg-slate-900 group cursor-pointer"
+      style={{ aspectRatio: '16/9' }}
+      aria-label={`Phát video: ${title}`}
+    >
+      {thumbnailUrl && (
+        <LazyImage
+          src={thumbnailUrl}
+          alt={title}
+          className="w-full h-full object-cover"
+          eager
+          skeletonClassName="bg-slate-800"
+          width={640}
+          height={360}
+        />
+      )}
+      {/* Play button overlay */}
+      <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors">
+        <div className="w-14 h-14 bg-red-600 hover:bg-red-700 rounded-full flex items-center justify-center shadow-lg transition-transform group-hover:scale-110">
+          <svg viewBox="0 0 24 24" className="w-6 h-6 text-white ml-1" fill="currentColor">
+            <path d="M8 5v14l11-7z" />
+          </svg>
         </div>
-
-        {/* Subcategory Chips */}
-        {hasSubcategories && (
-          <div className="flex flex-wrap gap-2 mb-3">
-            <button
-              onClick={() => handleSubcategoryClick(null)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                !activeSubcategory
-                  ? 'bg-primary text-white'
-                  : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
-              }`}
-            >
-              Tất cả ({accounts.length})
-            </button>
-            {category.subcategories.map((sub) => {
-              const count = accounts.filter(acc => acc.category?._id === sub._id).length;
-              if (count === 0) return null;
-              return (
-                <button
-                  key={sub._id}
-                  onClick={() => handleSubcategoryClick(sub)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all flex items-center gap-1 ${
-                    activeSubcategory?._id === sub._id
-                      ? 'bg-primary text-white'
-                      : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
-                  }`}
-                >
-                  <span>{sub.name}</span>
-                  <span className="opacity-70">({count})</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Empty state for subcategory */}
-        {activeSubcategory && filteredAccounts.length === 0 && (
-          <div className="text-center py-8 text-slate-500 dark:text-slate-400 text-sm">
-            Chưa có tài khoản trong danh mục con này
-          </div>
-        )}
-
-        {/* Accounts Grid */}
-        {filteredAccounts.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            {filteredAccounts.slice(0, 8).map((account) => (
-              <AccountCard
-                key={account._id}
-                account={account}
-                onBuyNow={(e) => handleBuyNow(e, account)}
-              />
-            ))}
-          </div>
-        )}
       </div>
-    </section>
+      {title && (
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
+          <p className="text-white text-sm font-medium line-clamp-1">{title}</p>
+        </div>
+      )}
+    </button>
   );
 };
 
@@ -228,6 +96,10 @@ const Home = () => {
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [buyingNow, setBuyingNow] = useState(false);
 
+  // Accounts display limit — show 12 at a time, reset on filter change
+  const [displayLimit, setDisplayLimit] = useState(12);
+  const PAGE_SIZE = 12;
+
   // Filter state
   const [filters, setFilters] = useState({
     priceRange: 'all',
@@ -242,6 +114,29 @@ const Home = () => {
 
   // Fetch sliders
   const { data: sliders } = useSliders();
+
+  // Preload hero banner images — inject <link rel="preload"> into <head>
+  // so the browser fetches them at highest priority alongside HTML parsing
+  useEffect(() => {
+    if (!sliders) return;
+    const images = [];
+    if (sliders.leftSliders) {
+      sliders.leftSliders.forEach((s) => { if (s.image) images.push(s.image); });
+    }
+    if (sliders.rightBanner?.image) {
+      images.push(sliders.rightBanner.image);
+    }
+    images.forEach((img) => {
+      const resolved = getResponsiveImageUrl(img, [640, 1280]);
+      // Extract base URL without srcSet widths for preload (use largest width)
+      const baseUrl = resolved.split(' ')[0];
+      const link = document.createElement('link');
+      link.rel = 'preload';
+      link.as = 'image';
+      link.href = baseUrl;
+      document.head.appendChild(link);
+    });
+  }, [sliders]);
 
   // Fetch categories
   const { data: categories, loading: categoriesLoading } = useCategories();
@@ -345,51 +240,49 @@ const Home = () => {
   }, [selectedParent, selectedSubcategory, displayAllAccounts, filters]);
 
   // Handle category click - check if has subcategories
-  const handleCategoryClick = (category) => {
+  const handleCategoryClick = useCallback((category) => {
+    setDisplayLimit(PAGE_SIZE); // reset to first page on category change
     const hasSubs = category.subcategories && category.subcategories.length > 0;
 
     if (hasSubs) {
-      // Có subcategories -> hiển thị grid subcategories
       setSelectedParent(category);
       setSelectedSubcategory(null);
-      // Scroll to subcategory grid
       setTimeout(() => {
         window.scrollTo({ top: window.innerHeight * 0.6, behavior: 'smooth' });
       }, 100);
     } else {
-      // Không có subcategory -> lọc accounts theo category này
       setSelectedParent(category);
       setSelectedSubcategory(null);
-      // Scroll to accounts section
       setTimeout(() => {
         accountsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
     }
-  };
+  }, []);
 
   // Handle subcategory selection
-  const handleSubcategoryClick = (subcategory) => {
+  const handleSubcategoryClick = useCallback((subcategory) => {
+    setDisplayLimit(PAGE_SIZE);
     setSelectedSubcategory(subcategory);
-    // Scroll to accounts section
     setTimeout(() => {
       accountsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
-  };
+  }, []);
 
-  // Filter handlers
-  const handleApplyFilters = () => {
-    setFilters(prev => ({
+  // Filter handlers — stable references so child components don't re-render unnecessarily
+  const handleApplyFilters = useCallback(() => {
+    setDisplayLimit(PAGE_SIZE); // reset to first page on new filter
+    setFilters((prev) => ({
       ...prev,
       searchName: tempSearchName,
       searchCode: tempSearchCode,
     }));
-    // Scroll to results
     setTimeout(() => {
       accountsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
-  };
+  }, [tempSearchName, tempSearchCode]);
 
-  const handleResetFilters = () => {
+  const handleResetFilters = useCallback(() => {
+    setDisplayLimit(PAGE_SIZE);
     setFilters({
       priceRange: 'all',
       sortBy: 'default',
@@ -398,9 +291,9 @@ const Home = () => {
     });
     setTempSearchName('');
     setTempSearchCode('');
-  };
+  }, []);
 
-  const handleBuyNow = async (e, account) => {
+  const handleBuyNow = useCallback(async (e, account) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -412,7 +305,7 @@ const Home = () => {
 
     setSelectedAccount(account);
     setShowBuyNowModal(true);
-  };
+  }, [isAuthenticated]);
 
   const handleConfirmBuyNow = async () => {
     if (!selectedAccount) return;
@@ -474,17 +367,23 @@ const Home = () => {
                         <SwiperSlide key={slide._id} className="!h-auto">
                           {slide.link ? (
                             <a href={slide.link} target="_blank" rel="noopener noreferrer" className="block h-full">
-                              <img
-                                src={getImageUrl(slide.image)}
+                              <LazyImage
+                                src={slide.image}
                                 alt={slide.title || 'Banner trái'}
                                 className="w-full h-full object-cover"
+                                eager
+                                srcSet={getResponsiveImageUrl(slide.image, [640, 1280, 1920])}
+                                sizes="(max-width: 768px) 100vw, 33vw"
                               />
                             </a>
                           ) : (
-                            <img
-                              src={getImageUrl(slide.image)}
+                            <LazyImage
+                              src={slide.image}
                               alt={slide.title || 'Banner trái'}
                               className="w-full h-full object-cover"
+                              eager
+                              srcSet={getResponsiveImageUrl(slide.image, [640, 1280, 1920])}
+                              sizes="(max-width: 768px) 100vw, 33vw"
                             />
                           )}
                         </SwiperSlide>
@@ -495,28 +394,30 @@ const Home = () => {
                   {/* Cột Phải — Ảnh hoặc YouTube */}
                   <div className="relative w-full overflow-hidden rounded-md">
                     {sliders.rightBanner?.type === 'youtube' && toYoutubeEmbedUrl(sliders.rightBanner.youtubeUrl) ? (
-                      <iframe
-                        src={toYoutubeEmbedUrl(sliders.rightBanner.youtubeUrl)}
+                      <YouTubeLazyEmbed
+                        embedUrl={toYoutubeEmbedUrl(sliders.rightBanner.youtubeUrl)}
                         title={sliders.rightBanner.title || 'Video YouTube'}
-                        className="w-full h-full"
-                        style={{ aspectRatio: '16/9' }}
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
                       />
                     ) : sliders.rightBanner?.image ? (
                       sliders.rightBanner.link ? (
                         <a href={sliders.rightBanner.link} target="_blank" rel="noopener noreferrer" className="block h-full">
-                          <img
-                            src={getImageUrl(sliders.rightBanner.image)}
+                          <LazyImage
+                            src={sliders.rightBanner.image}
                             alt={sliders.rightBanner.title || 'Banner phải'}
                             className="w-full h-full object-cover"
+                            eager
+                            srcSet={getResponsiveImageUrl(sliders.rightBanner.image, [640, 1280, 1920])}
+                            sizes="(max-width: 768px) 100vw, 67vw"
                           />
                         </a>
                       ) : (
-                        <img
-                          src={getImageUrl(sliders.rightBanner.image)}
+                        <LazyImage
+                          src={sliders.rightBanner.image}
                           alt={sliders.rightBanner.title || 'Banner phải'}
                           className="w-full h-full object-cover"
+                          eager
+                          srcSet={getResponsiveImageUrl(sliders.rightBanner.image, [640, 1280, 1920])}
+                          sizes="(max-width: 768px) 100vw, 67vw"
                         />
                       )
                     ) : (
@@ -594,10 +495,15 @@ const Home = () => {
                       className={`category-card ${isActive ? 'ring-2 ring-primary shadow-lg' : ''}`}
                     >
                       {category.thumbnail ? (
-                        <img
-                          src={getImageUrl(category.thumbnail)}
+                        <LazyImage
+                          src={category.thumbnail}
                           alt={category.name}
                           className="w-full h-40 object-cover rounded-lg mb-2"
+                          skeletonClassName="rounded-lg"
+                          srcSet={getResponsiveImageUrl(category.thumbnail, [320, 640, 960])}
+                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 320px"
+                          width={320}
+                          height={160}
                         />
                       ) : (
                         <div className="w-full h-32 rounded-t-lg mb-2 bg-gradient-to-br from-blue-700 via-blue-600 to-sky-300 flex items-center justify-center">
@@ -795,10 +701,13 @@ const Home = () => {
               {selectedSubcategory ? (
                 <>
                   {selectedSubcategory.thumbnail && (
-                    <img
-                      src={getImageUrl(selectedSubcategory.thumbnail)}
+                    <LazyImage
+                      src={selectedSubcategory.thumbnail}
                       alt={selectedSubcategory.name}
                       className="w-6 h-6 rounded object-cover"
+                      eager
+                      width={24}
+                      height={24}
                     />
                   )}
                   {selectedSubcategory.name}
@@ -816,10 +725,13 @@ const Home = () => {
               ) : selectedParent ? (
                 <>
                   {selectedParent.thumbnail && (
-                    <img
-                      src={getImageUrl(selectedParent.thumbnail)}
+                    <LazyImage
+                      src={selectedParent.thumbnail}
                       alt={selectedParent.name}
                       className="w-6 h-6 rounded object-cover"
+                      eager
+                      width={24}
+                      height={24}
                     />
                   )}
                   {selectedParent.name}
@@ -829,7 +741,9 @@ const Home = () => {
               )}
             </h2>
             <div className="text-xs text-slate-600 dark:text-slate-400">
-              {filteredAccounts.length} tài khoản
+              {filteredAccounts.length > displayLimit
+                ? `Hiển thị ${displayLimit} / ${filteredAccounts.length} tài khoản`
+                : `${filteredAccounts.length} tài khoản`}
             </div>
           </div>
 
@@ -847,15 +761,35 @@ const Home = () => {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {filteredAccounts.map((account) => (
-                <AccountCard
-                  key={account._id}
-                  account={account}
-                  onBuyNow={(e) => handleBuyNow(e, account)}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {filteredAccounts.slice(0, displayLimit).map((account) => (
+                  <AccountCard
+                    key={account._id}
+                    account={account}
+                    onBuyNow={(e) => handleBuyNow(e, account)}
+                  />
+                ))}
+              </div>
+
+              {/* Load more / Pagination */}
+              {filteredAccounts.length > displayLimit && (
+                <div className="mt-4 flex flex-col items-center gap-3">
+                  <PaginationNav
+                    currentPage={Math.ceil(displayLimit / PAGE_SIZE)}
+                    totalPages={Math.ceil(filteredAccounts.length / PAGE_SIZE)}
+                    onPageChange={(page) => setDisplayLimit(page * PAGE_SIZE)}
+                    siblingsCount={1}
+                  />
+                  <button
+                    onClick={() => setDisplayLimit((prev) => prev + PAGE_SIZE)}
+                    className="btn-secondary text-sm px-6 py-2"
+                  >
+                    Xem thêm ({Math.min(PAGE_SIZE, filteredAccounts.length - displayLimit)} tiếp)
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </section>

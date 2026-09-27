@@ -58,13 +58,18 @@
       })();
     </script>
 
-    <!-- Favicon -->
+    <!-- Favicon — preload critical favicon assets -->
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png" />
     <link rel="icon" type="image/png" sizes="512x512" href="/favicon-512x512.png" />
+    <!-- SVG favicon — dynamically updated by JS when admin changes favicon setting -->
     <link rel="icon" type="image/svg+xml" id="favicon-link" href="/favicon.svg" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+    <!-- Preload favicon for faster first paint -->
+    <link rel="preload" as="image" type="image/png" href="/favicon-512x512.png" />
+    <link rel="preload" as="image" type="image/svg+xml" href="/favicon.svg" />
 
     <!-- Structured Data - Organization Schema -->
     <script type="application/ld+json">

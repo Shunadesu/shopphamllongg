@@ -7,6 +7,7 @@ import Loading from '../components/Loading';
 import { FiTrash2, FiShoppingBag } from 'react-icons/fi';
 import SEOHead from '../components/SEOHead';
 import { getImageUrl } from '../utils/api';
+import LazyImage from '../components/LazyImage';
 
 const Cart = ({ onOpenAuth }) => {
   const navigate = useNavigate();
@@ -72,10 +73,11 @@ const Cart = ({ onOpenAuth }) => {
                 <div className="flex gap-2">
                   {/* Image */}
                   <Link to={`/account/${item._id}`} className="flex-shrink-0">
-                    <img
-                      src={getImageUrl(item.images?.[0]) || '/placeholder.jpg'}
+                    <LazyImage
+                      src={item.images?.[0]}
                       alt={item.title}
                       className="w-24 h-24 object-cover rounded-lg"
+                      skeletonClassName="rounded-lg"
                     />
                   </Link>
 

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { getImageUrl } from '../utils/api';
+import LazyImage from './LazyImage';
 
 const CategoryCard = ({ category }) => {
   return (
@@ -9,12 +9,15 @@ const CategoryCard = ({ category }) => {
     >
       <div className="flex items-center space-x-2">
         {/* Icon/Thumbnail */}
-        <div className="w-16 h-16 bg-gradient-to-br from-primary to-primary-dark rounded-lg flex items-center justify-center flex-shrink-0">
+        <div className="w-16 h-16 bg-gradient-to-br from-primary to-primary-dark rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
           {category.thumbnail ? (
-            <img
-              src={getImageUrl(category.thumbnail)}
+            <LazyImage
+              src={category.thumbnail}
               alt={category.name}
               className="w-full h-full object-cover rounded-lg"
+              skeletonClassName="rounded-lg"
+              width={64}
+              height={64}
             />
           ) : (
             <span className="text-2xl font-bold text-white">

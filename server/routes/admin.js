@@ -11,6 +11,7 @@ import Notification from '../models/Notification.js';
 import SiteSetting from '../models/SiteSetting.js';
 import SpinReward from '../models/SpinReward.js';
 import SpinHistory from '../models/SpinHistory.js';
+import AdminAccessLog from '../models/AdminAccessLog.js';
 import { adminAuth } from '../middleware/auth.js';
 import { encrypt, decrypt } from '../utils/encryption.js';
 import { calculateSpinsAwarded } from '../utils/spinLogic.js';
@@ -1475,6 +1476,136 @@ router.get('/spin/history', adminAuth, async (req, res) => {
     });
   } catch (error) {
     console.error('Get spin history error:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// ==================== ADMIN MANAGEMENT ====================
+
+// Get all admins
+router.get('/admins', adminAuth, async (req, res) => {
+  try {
+    const admins = await User.find({ role: 'admin' })
+      .select('-password')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.json(admins);
+  } catch (error) {
+    console.error('Get admins error:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// Create new admin
+router.post('/admins', adminAuth, async (req, res) => {
+  try {
+    const { username, password, fullName } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({ message: 'Username và password là bắt buộc' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'Password phải có ít nhất 6 ký tự' });
+    }
+
+    // Check if username already exists
+    const existing = await User.findOne({ username: username.toLowerCase() });
+    if (existing) {
+      return res.status(400).json({ message: 'Username đã tồn tại' });
+    }
+
+    const admin = new User({
+      username: username.toLowerCase().trim(),
+      password,
+      fullName: fullName || username,
+      role: 'admin',
+      isActive: true
+    });
+
+    await admin.save();
+
+    const adminObj = admin.toObject();
+    delete adminObj.password;
+
+    res.status(201).json(adminObj);
+  } catch (error) {
+    console.error('Create admin error:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// Delete admin
+router.delete('/admins/:id', adminAuth, async (req, res) => {
+  try {
+    const targetAdmin = await User.findById(req.params.id);
+
+    if (!targetAdmin) {
+      return res.status(404).json({ message: 'Admin không tồn tại' });
+    }
+
+    if (targetAdmin.role !== 'admin') {
+      return res.status(400).json({ message: 'Người dùng này không phải là admin' });
+    }
+
+    // Prevent self-deletion
+    if (targetAdmin._id.toString() === req.user._id.toString()) {
+      return res.status(400).json({ message: 'Không thể xóa chính mình' });
+    }
+
+    await User.findByIdAndDelete(req.params.id);
+
+    res.json({ message: 'Đã xóa admin thành công' });
+  } catch (error) {
+    console.error('Delete admin error:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// ==================== ADMIN ACCESS LOGS ====================
+
+// Get access logs
+router.get('/admins/access-logs', adminAuth, async (req, res) => {
+  try {
+    const { page = 1, limit = 50, adminId, method, path, date } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const query = {};
+
+    if (adminId) query.adminId = adminId;
+    if (method) query.method = method;
+    if (path) query.path = { $regex: path, $options: 'i' };
+
+    if (date) {
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+      query.createdAt = { $gte: startOfDay, $lte: endOfDay };
+    }
+
+    const [logs, total] = await Promise.all([
+      AdminAccessLog.find(query)
+        .populate('adminId', 'username fullName')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(),
+      AdminAccessLog.countDocuments(query)
+    ]);
+
+    res.json({
+      logs,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Get access logs error:', error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 });

@@ -12,12 +12,14 @@ import accountRoutes from './routes/accounts.js';
 import orderRoutes from './routes/orders.js';
 import depositRoutes from './routes/deposits.js';
 import adminRoutes from './routes/admin.js';
+import adminAccessLog from './middleware/adminAccessLog.js';
 import settingsRoutes from './routes/settings.js';
 import uploadRoutes from './routes/upload.js';
 import sitemapRoutes from './routes/sitemap.js';
 import socialLinksRoutes from './routes/socialLinks.js';
 import spinRoutes from './routes/spin.js';
 import promotionRoutes from './routes/promotions.js';
+import adminSpinRoutes from './routes/adminSpin.js';
 import { initTelegramBot } from './services/telegramBot.js';
 import emailChecker from './services/emailChecker.js';
 
@@ -74,6 +76,7 @@ app.use('/api/accounts', accountRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/deposits', depositRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/admin', adminAccessLog);
 app.use('/api/admin/promotions', promotionRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/upload', uploadRoutes);
@@ -82,7 +85,6 @@ app.use('/api/social-links', socialLinksRoutes);
 app.use('/api/admin/social-links', socialLinksRoutes);
 
 // Admin spin routes
-import adminSpinRoutes from './routes/adminSpin.js';
 app.use('/api/admin/spin', adminSpinRoutes);
 
 app.use('/', sitemapRoutes);

@@ -22,6 +22,7 @@ async function createAdmin() {
 
     const adminUsername = process.argv[2] || 'admin';
     const adminPassword = process.argv[3] || 'admin123';
+    const adminEmail = process.argv[4] || ''; // Optional: email cho OTP
 
     // Check if admin already exists
     const existingAdmin = await User.findOne({ username: adminUsername });
@@ -44,6 +45,7 @@ async function createAdmin() {
         password: adminPassword,
         fullName: 'Administrator',
         phone: '0000000000',
+        email: adminEmail,
         role: 'admin',
         isActive: true,
         balance: 0
@@ -54,6 +56,7 @@ async function createAdmin() {
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log('Username: ' + adminUsername);
       console.log('Password: ' + adminPassword);
+      console.log('Email:    ' + (adminEmail || '(chưa có — OTP sẽ không gửi được)'));
       console.log('Role:     admin');
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     }

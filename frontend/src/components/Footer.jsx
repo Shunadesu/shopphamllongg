@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { FiFacebook, FiMail, FiPhone, FiMapPin, FiGlobe } from 'react-icons/fi';
 import { useSettings, useSocialLinks } from '../hooks';
+import LazyImage from './LazyImage';
 
 const Footer = () => {
   // Fetch settings for logo
@@ -30,10 +31,11 @@ const Footer = () => {
           <div>
             <Link to="/" className="flex items-center space-x-2 mb-4">
               {settings?.logo ? (
-                <img
+                <LazyImage
                   src={settings.logo}
                   alt="Shopphamlong"
                   className="h-20 w-auto object-contain"
+                  eager
                 />
               ) : (
                 <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-dark rounded-lg flex items-center justify-center">
