@@ -30,7 +30,7 @@ const SkeletonCategoryCard = () => (
 );
 
 // YouTube iframe that only loads when user clicks play — saves ~500KB of JS
-const YouTubeLazyEmbed = ({ embedUrl, title }) => {
+const YouTubeLazyEmbed = ({ embedUrl }) => {
   const [playing, setPlaying] = useState(false);
   // Derive thumbnail from YouTube video ID
   const videoId = embedUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/)?.[1];
@@ -40,7 +40,7 @@ const YouTubeLazyEmbed = ({ embedUrl, title }) => {
     return (
       <iframe
         src={`${embedUrl}&autoplay=1`}
-        title={title}
+        title="YouTube video"
         className="w-full h-full"
         style={{ aspectRatio: '16/9' }}
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -54,12 +54,12 @@ const YouTubeLazyEmbed = ({ embedUrl, title }) => {
       onClick={() => setPlaying(true)}
       className="relative w-full overflow-hidden rounded-md bg-slate-900 group cursor-pointer"
       style={{ aspectRatio: '16/9' }}
-      aria-label={`Phát video: ${title}`}
+      aria-label="Phát video YouTube"
     >
       {thumbnailUrl && (
         <LazyImage
           src={thumbnailUrl}
-          alt={title}
+          alt="YouTube video thumbnail"
           className="w-full h-full object-cover"
           eager
           skeletonClassName="bg-slate-800"
@@ -75,11 +75,6 @@ const YouTubeLazyEmbed = ({ embedUrl, title }) => {
           </svg>
         </div>
       </div>
-      {title && (
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
-          <p className="text-white text-sm font-medium line-clamp-1">{title}</p>
-        </div>
-      )}
     </button>
   );
 };
@@ -351,7 +346,7 @@ const Home = () => {
               const rightWidth = 100 - leftWidth;
               return (
                 <div
-                  className="grid gap-1 rounded-md overflow-hidden banner-grid"
+                  className="flex flex-col md:grid gap-1 rounded-md overflow-hidden banner-grid"
                   style={{ gridTemplateColumns: `${leftWidth}fr ${rightWidth}fr` }}
                 >
                   {/* Cột Trái — Swiper nhiều ảnh */}
@@ -369,7 +364,7 @@ const Home = () => {
                             <a href={slide.link} target="_blank" rel="noopener noreferrer" className="block h-full">
                               <LazyImage
                                 src={slide.image}
-                                alt={slide.title || 'Banner trái'}
+                                alt="Banner trái"
                                 className="w-full h-full object-cover"
                                 eager
                                 srcSet={getResponsiveImageUrl(slide.image, [640, 1280, 1920])}
@@ -379,7 +374,7 @@ const Home = () => {
                           ) : (
                             <LazyImage
                               src={slide.image}
-                              alt={slide.title || 'Banner trái'}
+                              alt="Banner trái"
                               className="w-full h-full object-cover"
                               eager
                               srcSet={getResponsiveImageUrl(slide.image, [640, 1280, 1920])}
@@ -396,14 +391,13 @@ const Home = () => {
                     {sliders.rightBanner?.type === 'youtube' && toYoutubeEmbedUrl(sliders.rightBanner.youtubeUrl) ? (
                       <YouTubeLazyEmbed
                         embedUrl={toYoutubeEmbedUrl(sliders.rightBanner.youtubeUrl)}
-                        title={sliders.rightBanner.title || 'Video YouTube'}
                       />
                     ) : sliders.rightBanner?.image ? (
                       sliders.rightBanner.link ? (
                         <a href={sliders.rightBanner.link} target="_blank" rel="noopener noreferrer" className="block h-full">
                           <LazyImage
                             src={sliders.rightBanner.image}
-                            alt={sliders.rightBanner.title || 'Banner phải'}
+                            alt="Banner phải"
                             className="w-full h-full object-cover"
                             eager
                             srcSet={getResponsiveImageUrl(sliders.rightBanner.image, [640, 1280, 1920])}
@@ -413,7 +407,7 @@ const Home = () => {
                       ) : (
                         <LazyImage
                           src={sliders.rightBanner.image}
-                          alt={sliders.rightBanner.title || 'Banner phải'}
+                          alt="Banner phải"
                           className="w-full h-full object-cover"
                           eager
                           srcSet={getResponsiveImageUrl(sliders.rightBanner.image, [640, 1280, 1920])}
@@ -463,7 +457,7 @@ const Home = () => {
 
             {/* Show skeleton while loading, real data when loaded, empty state if no categories */}
             {categoriesLoading ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-1.5">
                 {[1, 2, 3, 4].map((i) => (
                   <SkeletonCategoryCard key={i} />
                 ))}
@@ -475,7 +469,7 @@ const Home = () => {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-1.5 items-stretch">
                 {displayCategories.map((category) => {
                   const count = (accountsByCategory[category._id] || []).length;
                   const hasSubs = category.subcategories && category.subcategories.length > 0;
@@ -494,62 +488,70 @@ const Home = () => {
                       onClick={() => handleCategoryClick(category)}
                       className={`category-card ${isActive ? 'ring-2 ring-primary shadow-lg' : ''}`}
                     >
-                      {category.thumbnail ? (
-                        <LazyImage
-                          src={category.thumbnail}
-                          alt={category.name}
-                          className="w-full h-40 object-cover rounded-lg mb-2"
-                          skeletonClassName="rounded-lg"
-                          srcSet={getResponsiveImageUrl(category.thumbnail, [320, 640, 960])}
-                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 320px"
-                          width={320}
-                          height={160}
-                        />
-                      ) : (
-                        <div className="w-full h-32 rounded-t-lg mb-2 bg-gradient-to-br from-blue-700 via-blue-600 to-sky-300 flex items-center justify-center">
-                          <span className="text-white text-2xl font-bold opacity-50">
-                            {category.name.charAt(0)}
-                          </span>
-                        </div>
-                      )}
-                      <h3 className="text-slate-900 bg-primary text-transparent p-2 dark:text-white text-sm font-semibold text-center">{category.name}</h3>
-
-                      {/* Số tài khoản */}
-                      <div className="category-count">
-                        {hasSubs ? (
-                          // Danh mục cha có subcategories
-                          <div className="flex  items-center gap-1">
-                            <div className="flex items-center gap-1">
-                              <span className="category-count__num">{category.subcategories.length}</span>
-                              <span className="category-count__label">danh mục</span>
-                            </div>
-                            <div>-</div>
-                            <div className="flex items-center gap-1">
-                              <span className="category-count__num text-xs">{totalProductsInSubs}</span>
-                              <span className="category-count__label">sản phẩm</span>
-                            </div>
-                          </div>
-                        ) : count > 0 ? (
-                          // Danh mục không có sub nhưng có sản phẩm
-                          <>
-                            <span className="category-count__num">{count}</span>
-                            <span className="category-count__label">tài khoản</span>
-                          </>
+                      {/* Image container - chiều cao cố định 120px từ CSS */}
+                      <div className="category-card__image">
+                        {category.thumbnail ? (
+                          <LazyImage
+                            src={category.thumbnail}
+                            alt={category.name}
+                            className="w-full h-full"
+                            objectFit="contain"
+                            skeletonClassName="rounded-lg"
+                            srcSet={getResponsiveImageUrl(category.thumbnail, [320, 640, 960])}
+                            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 320px"
+                          />
                         ) : (
-                          // Danh mục trống
-                          <span className="category-count__label">Sắp có</span>
+                          <div className="w-full h-full bg-gradient-to-br from-blue-700 via-blue-600 to-sky-300 flex items-center justify-center">
+                            <span className="text-white text-2xl font-bold opacity-50">
+                              {category.name.charAt(0)}
+                            </span>
+                          </div>
                         )}
                       </div>
 
-                      {category.description && (
-                        <p className="text-slate-500 dark:text-slate-400 text-xs text-center mt-1 line-clamp-2">
-                          {category.description}
+                      {/* Content container */}
+                      <div className="category-card__content">
+                        {/* Title */}
+                        <h3 className="category-card__title">
+                          {category.name}
+                        </h3>
+
+                        {/* Description */}
+                        <p className="category-card__description">
+                          {category.description || '\u00A0'}
                         </p>
-                      )}
+
+                        {/* Count */}
+                        <div className="category-count">
+                          {hasSubs ? (
+                            // Danh mục cha có subcategories
+                            <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-1">
+                                <span className="category-count__num">{category.subcategories.length}</span>
+                                <span className="category-count__label">danh mục</span>
+                              </div>
+                              <div>-</div>
+                              <div className="flex items-center gap-1">
+                                <span className="category-count__num text-xs">{totalProductsInSubs}</span>
+                                <span className="category-count__label">sản phẩm</span>
+                              </div>
+                            </div>
+                          ) : count > 0 ? (
+                            // Danh mục không có sub nhưng có sản phẩm
+                            <>
+                              <span className="category-count__num">{count}</span>
+                              <span className="category-count__label">tài khoản</span>
+                            </>
+                          ) : (
+                            // Danh mục trống
+                            <span className="category-count__label">Sắp có</span>
+                          )}
+                        </div>
+                      </div>
                       
-                      {/* Icon hiển thị có subcategories */}
+                      {/* Badge - absolute positioned */}
                       {hasSubs && (
-                        <div className="absolute top-2 right-2 bg-primary/90 text-white text-xs px-2 py-0.5 rounded-full">
+                        <div className="category-card__badge">
                           {category.subcategories.length} danh mục
                         </div>
                       )}

@@ -236,7 +236,7 @@ export default function PromotionForm() {
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="input"
-              placeholder="VD: Khuyến mãi Tết 2024"
+              placeholder="VD: Khuyến mãi Tết 2026"
               required
             />
           </div>

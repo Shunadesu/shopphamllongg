@@ -20,11 +20,19 @@ const EMAILJS_API_URL = 'https://api.emailjs.com/api/v1.0/email/send';
  * @returns {Promise<void>}
  */
 async function sendOtpEmail(toEmail, toName, otpCode, ttlMinutes = 5) {
+  console.log('\n========== [EmailJS] BẮT ĐẦU GỬI EMAIL ==========');
+  
   const serviceId = process.env.EMAILJS_SERVICE_ID;
   const templateId = process.env.EMAILJS_TEMPLATE_ID;
   const userId = process.env.EMAILJS_USER_ID;
 
+  console.log('[EmailJS] 1️⃣  Kiểm tra biến môi trường:');
+  console.log('   - EMAILJS_SERVICE_ID:', serviceId ? '✅ Có' : '❌ Thiếu');
+  console.log('   - EMAILJS_TEMPLATE_ID:', templateId ? '✅ Có' : '❌ Thiếu');
+  console.log('   - EMAILJS_USER_ID:', userId ? '✅ Có' : '❌ Thiếu');
+
   if (!serviceId || !templateId || !userId) {
+    console.error('[EmailJS] ❌ Thiếu cấu hình EmailJS!');
     throw new Error(
       'Thiếu cấu hình EmailJS. Vui lòng kiểm tra EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, EMAILJS_USER_ID trong .env'
     );
@@ -43,6 +51,16 @@ async function sendOtpEmail(toEmail, toName, otpCode, ttlMinutes = 5) {
     },
   };
 
+  console.log('[EmailJS] 2️⃣  Payload chuẩn bị gửi:');
+  console.log('   - API URL:', EMAILJS_API_URL);
+  console.log('   - Service ID:', serviceId);
+  console.log('   - Template ID:', templateId);
+  console.log('   - User ID:', userId);
+  console.log('   - Template Params:', JSON.stringify(payload.template_params, null, 2));
+
+  console.log('[EmailJS] 3️⃣  Đang gửi request đến EmailJS API...');
+  const startTime = Date.now();
+
   const response = await fetch(EMAILJS_API_URL, {
     method: 'POST',
     headers: {
@@ -51,12 +69,20 @@ async function sendOtpEmail(toEmail, toName, otpCode, ttlMinutes = 5) {
     body: JSON.stringify(payload),
   });
 
+  const duration = Date.now() - startTime;
+  console.log(`[EmailJS] 4️⃣  Response nhận được sau ${duration}ms:`);
+  console.log('   - Status Code:', response.status);
+  console.log('   - Status Text:', response.statusText);
+
   if (!response.ok) {
     const text = await response.text().catch(() => 'Unknown error');
+    console.error('[EmailJS] ❌ GỬI EMAIL THẤT BẠI!');
+    console.error('   - Error Response:', text);
     throw new Error(`EmailJS API error: ${response.status} — ${text}`);
   }
 
-  console.log(`[EmailSender] ✅ OTP email sent to ${toEmail}`);
+  console.log(`[EmailJS] ✅ GỬI EMAIL THÀNH CÔNG đến ${toEmail}`);
+  console.log('========== [EmailJS] KẾT THÚC ==========\n');
 }
 
 /**

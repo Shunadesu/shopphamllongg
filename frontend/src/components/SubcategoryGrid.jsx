@@ -42,35 +42,32 @@ export default function SubcategoryGrid({
               <button
                 key={subcategory._id}
                 onClick={() => onSelectSubcategory(subcategory)}
-                className="category-card"
+                className="category-card flex flex-col h-full"
               >
-                {subcategory.thumbnail ? (
-                  <div
-                    className="relative w-full overflow-hidden rounded-lg mb-2 bg-slate-200 dark:bg-slate-800"
-                    style={{ aspectRatio: '16 / 9' }}
-                  >
+                {/* Image container - chiều cao cố định 120px từ CSS giống category cha */}
+                <div className="category-card__image">
+                  {subcategory.thumbnail ? (
                     <LazyImage
                       src={subcategory.thumbnail}
                       alt={subcategory.name}
-                      className="absolute inset-0 w-full h-full object-cover"
+                      objectFit="contain"
                     />
-                  </div>
-                ) : (
-                  <div className="w-full h-24 rounded-t-lg mb-2 bg-gradient-to-br from-blue-700 via-blue-600 to-sky-300 flex items-center justify-center">
-                    <span className="text-white text-xl font-bold opacity-50">
-                      {subcategory.name.charAt(0)}
-                    </span>
-                  </div>
-                )}
-                <h3 className="text-slate-900 bg-primary text-transparent p-2 dark:text-white text-sm font-semibold text-center">
-                  {subcategory.name}
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-blue-700 via-blue-600 to-sky-300 flex items-center justify-center">
+                      <span className="text-white text-xl font-bold opacity-50">
+                        {subcategory.name.charAt(0)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <h3 className="text-slate-900 bg-primary text-transparent px-2 py-1 dark:text-white text-sm font-semibold text-center h-[3rem] flex items-center justify-center leading-5">
+                  <span className="line-clamp-2">{subcategory.name}</span>
                 </h3>
-                {subcategory.description && (
-                  <p className="text-slate-500 dark:text-slate-400 text-xs text-center mt-1 line-clamp-2">
-                    {subcategory.description}
-                  </p>
-                )}
-                <span className="category-count__label text-center block mt-1 text-primary">
+                <p className="text-slate-500 dark:text-slate-400 text-xs text-center mt-1 line-clamp-2 h-[2rem] leading-4">
+                  {subcategory.description || '\u00A0'}
+                </p>
+                <span className="category-count__label text-center block mt-auto pt-2 text-primary font-medium">
                   {accountCount > 0 ? `${accountCount} tài khoản` : 'Sắp có'}
                 </span>
               </button>

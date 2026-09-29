@@ -233,12 +233,12 @@ const AccountDetail = ({ onOpenAuth }) => {
             </div>
 
             {images.length > 1 && (
-              <div className="grid grid-cols-4 gap-1">
+              <div className="flex gap-1 overflow-x-auto">
                 {images.map((img, idx) => (
                   <div
                     key={idx}
                     onClick={() => setSelectedImage(idx)}
-                    className={`relative cursor-pointer border-2 rounded overflow-hidden transition-all ${
+                    className={`relative cursor-pointer border-2 rounded overflow-hidden transition-all flex-shrink-0 w-[calc(25%-0.1875rem)] ${
                       selectedImage === idx
                         ? 'border-primary'
                         : 'border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600'
@@ -292,7 +292,7 @@ const AccountDetail = ({ onOpenAuth }) => {
               {/* Sale price — prominent */}
               <div className="text-center">
                 <p className="text-slate-500 dark:text-slate-400 text-xs mb-0.5">Giá bán</p>
-                <p className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-sky-400 to-sky-200 font-black text-3xl leading-none">
+                <p className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 font-black text-3xl leading-none animate-gradient">
                   {account.price.toLocaleString('vi-VN')}đ
                 </p>
               </div>
@@ -311,6 +311,30 @@ const AccountDetail = ({ onOpenAuth }) => {
                   <div className={`flex items-center justify-between ${account.teamValue ? 'pt-1 border-t border-slate-200 dark:border-slate-700' : ''}`}>
                     <span className="text-amber-500 font-semibold text-xs uppercase">BP</span>
                     <span className="text-slate-900 dark:text-white font-bold text-sm">{account.bp}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Contact Info: Phone, Email, CCCD */}
+            {(account.phone || account.email || account.cccd) && (
+              <div className="bg-slate-100 dark:bg-slate-800/50 rounded p-2 border border-slate-200 dark:border-slate-700 space-y-1">
+                {account.phone && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-600 dark:text-slate-400 font-medium text-xs">Số điện thoại</span>
+                    <span className="text-slate-900 dark:text-white font-semibold text-xs">{account.phone}</span>
+                  </div>
+                )}
+                {account.email && (
+                  <div className={`flex items-center justify-between ${account.phone ? 'pt-1 border-t border-slate-200 dark:border-slate-700' : ''}`}>
+                    <span className="text-slate-600 dark:text-slate-400 font-medium text-xs">Email</span>
+                    <span className="text-slate-900 dark:text-white font-semibold text-xs break-all">{account.email}</span>
+                  </div>
+                )}
+                {account.cccd && (
+                  <div className={`flex items-center justify-between ${(account.phone || account.email) ? 'pt-1 border-t border-slate-200 dark:border-slate-700' : ''}`}>
+                    <span className="text-slate-600 dark:text-slate-400 font-medium text-xs">CCCD</span>
+                    <span className="text-slate-900 dark:text-white font-semibold text-xs">{account.cccd}</span>
                   </div>
                 )}
               </div>

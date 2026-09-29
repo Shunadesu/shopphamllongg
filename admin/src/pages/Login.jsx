@@ -12,6 +12,8 @@ export default function Login() {
   // Flow: 'username' → 'otp'
   const [step, setStep] = useState('username');
   const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
@@ -48,19 +50,34 @@ export default function Login() {
     return () => clearInterval(timer);
   }, [resendCooldown]);
 
-  // ─── Step 1: Gửi OTP ───────────────────────────────────────────────
+  // ─── Step 1: Gửi OTP (yêu cầu username + password) ────────────────────
   const handleSendOtp = async (e) => {
     e.preventDefault();
     if (!username.trim()) {
       toast.error('Vui lòng nhập tên đăng nhập');
       return;
     }
+    if (!password.trim()) {
+      toast.error('Vui lòng nhập mật khẩu');
+      return;
+    }
+
+    console.log('\n🚀 [Frontend] Bắt đầu request OTP');
+    console.log('📝 Username:', username.trim().toLowerCase());
+    console.log('🔒 Password:', '***' + password.slice(-2)); // Chỉ show 2 ký tự cuối
+    console.log('🌐 API Endpoint: POST /auth/admin/send-otp');
 
     setIsLoading(true);
     try {
+      console.log('⏳ [Frontend] Đang gọi API...');
       const { data } = await api.post('/auth/admin/send-otp', {
         username: username.trim().toLowerCase(),
+        password: password.trim(),
       });
+
+      console.log('✅ [Frontend] API Response:', data);
+      console.log('📧 Email đích:', 'phamlongfco2623@gmail.com');
+      console.log('⏱️  OTP expires in:', data.expiresInSeconds, 'seconds');
 
       setCountdown(300); // 5 phút
       setResendCooldown(60); // 60s trước khi gửi lại
@@ -71,6 +88,10 @@ export default function Login() {
 
       toast.success(data.message || 'Mã OTP đã được gửi đến phamlongfco2623@gmail.com.');
     } catch (error) {
+      console.error('❌ [Frontend] Request OTP thất bại');
+      console.error('Error status:', error.response?.status);
+      console.error('Error message:', error.response?.data?.message || error.message);
+      console.error('Full error:', error.response?.data);
       const msg = error.response?.data?.message || 'Không thể gửi mã OTP';
       toast.error(msg);
       if (error.response?.data?.waitSeconds) {
@@ -89,17 +110,31 @@ export default function Login() {
       return;
     }
 
+    console.log('\n🔐 [Frontend] Bắt đầu verify OTP');
+    console.log('📝 Username:', username.trim().toLowerCase());
+    console.log('🔢 OTP Code:', otp.trim());
+    console.log('🌐 API Endpoint: POST /auth/admin/verify-otp');
+
     setIsLoading(true);
     try {
+      console.log('⏳ [Frontend] Đang verify OTP...');
       const { data } = await api.post('/auth/admin/verify-otp', {
         username: username.trim().toLowerCase(),
         otp: otp.trim(),
       });
 
+      console.log('✅ [Frontend] OTP hợp lệ! Đăng nhập thành công');
+      console.log('👤 User:', data.user);
+      console.log('🎫 Token received:', data.token?.substring(0, 20) + '...');
+
       login(data.user, data.token);
       toast.success(data.message || 'Đăng nhập thành công!');
       navigate('/');
     } catch (error) {
+      console.error('❌ [Frontend] Verify OTP thất bại');
+      console.error('Error status:', error.response?.status);
+      console.error('Error message:', error.response?.data?.message || error.message);
+      
       toast.error(error.response?.data?.message || 'Mã OTP không hợp lệ');
       setOtp('');
       otpInputRefs.current[0]?.focus();
@@ -115,6 +150,7 @@ export default function Login() {
     try {
       const { data } = await api.post('/auth/admin/send-otp', {
         username: username.trim().toLowerCase(),
+        password: password.trim(),
       });
       setCountdown(300);
       setResendCooldown(60);
@@ -178,6 +214,7 @@ export default function Login() {
   const handleBack = () => {
     setStep('username');
     setOtp('');
+    setPassword('');
     setCountdown(0);
     setResendCooldown(0);
   };
@@ -205,14 +242,14 @@ export default function Login() {
           </h1>
           <p className="text-slate-400">
             {step === 'username'
-              ? 'Nhập tên đăng nhập để nhận mã OTP'
+              ? 'Nhập thông tin để nhận mã OTP qua email'
               : 'Nhập mã OTP đã được gửi qua email'}
           </p>
         </div>
 
         {/* Card */}
         <div className="card">
-          {/* ── Step 1: Username ── */}
+          {/* ── Step 1: Username + Password ── */}
           {step === 'username' && (
             <form onSubmit={handleSendOtp} className="space-y-5">
               <div>
@@ -233,9 +270,33 @@ export default function Login() {
                     required
                   />
                 </div>
-                <p className="text-xs text-slate-500 mt-2">
-                  Mã xác minh sẽ được gửi đến phamlongfco2623@gmail.com.
-                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Mật khẩu
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <FiLock className="text-slate-400" />
+                  </div>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="input-field pl-11 pr-11"
+                    placeholder="••••••••"
+                    autoComplete="current-password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-slate-200 transition-colors"
+                  >
+                    {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                  </button>
+                </div>
               </div>
 
               <button

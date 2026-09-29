@@ -449,11 +449,11 @@ export default function AccountForm() {
 
               <FormGroup label="Email">
                 <input
-                  type="email"
+                  type="text"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="input-field"
-                  placeholder="VD: email@example.com"
+                  placeholder="VD: email@example.com hoặc Trắng"
                 />
               </FormGroup>
 

@@ -133,7 +133,7 @@ const Footer = () => {
         <div className="border-t border-slate-200 dark:border-slate-800 mt-8 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center space-y-2 md:space-y-0">
             <p className="text-slate-600 dark:text-slate-400 text-sm">
-              © 2024 <span className="text-primary font-semibold">PhamLongFCO</span>. All rights reserved.
+              © 2026 <span className="text-primary font-semibold">PhamLongFCO</span>. All rights reserved.
             </p>
             <div className="flex items-center space-x-2">
               {(Array.isArray(socialLinks) ? socialLinks : []).map((link) => (

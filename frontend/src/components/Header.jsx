@@ -9,7 +9,7 @@ import { useUserStore } from '../store/data/userStore';
 import AuthDrawer from './AuthDrawer';
 import CartDrawer from './CartDrawer';
 import LazyImage from './LazyImage';
-import { FiShoppingCart, FiUser, FiLogOut, FiMenu, FiSun, FiMoon, FiPlus } from 'react-icons/fi';
+import { FiShoppingCart, FiUser, FiLogOut, FiMenu, FiSun, FiMoon, FiPlus, FiUserPlus } from 'react-icons/fi';
 import { GiSpinningBlades } from 'react-icons/gi';
 
 const Header = ({ onOpenAuth, onOpenCart, isAuthOpen, isCartOpen, onCloseAuth, onCloseCart, authInitialView = 'login' }) => {
@@ -97,28 +97,28 @@ const Header = ({ onOpenAuth, onOpenCart, isAuthOpen, isCartOpen, onCloseAuth, o
             <nav className="hidden md:flex items-center space-x-1">
               <Link
                 to="/"
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${navLinkColor(location.pathname === '/')}`}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${navLinkColor(location.pathname === '/')}`}
               >
                 ShopGame
               </Link>
               
               <Link
                 to="/profile?view=deposit"
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${navLinkColor(location.pathname === '/profile' && location.search.includes('view=deposit'))}`}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${navLinkColor(location.pathname === '/profile' && location.search.includes('view=deposit'))}`}
               >
                 Nạp ATM
               </Link>
               
               <Link
                 to="/profile?view=card-deposit"
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${navLinkColor(location.pathname === '/profile' && location.search.includes('view=card-deposit'))}`}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${navLinkColor(location.pathname === '/profile' && location.search.includes('view=card-deposit'))}`}
               >
                 Nạp thẻ cào
               </Link>
               
               {/* Dropdown Hướng dẫn */}
               <div className="relative group">
-                <button className={`px-4 py-2 rounded-lg font-medium transition-colors ${iconColor()} flex items-center gap-1`}>
+                <button className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${iconColor()} flex items-center gap-1`}>
                   Hướng dẫn
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -128,19 +128,19 @@ const Header = ({ onOpenAuth, onOpenCart, isAuthOpen, isCartOpen, onCloseAuth, o
                 <div className="absolute left-0 top-full mt-1 w-56 bg-white dark:bg-dark-light border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                   <Link
                     to="/guide"
-                    className="block px-4 py-3 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors rounded-t-lg"
+                    className="block px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors rounded-t-lg"
                   >
                     Hướng dẫn mua hàng
                   </Link>
                   <Link
                     to="/account-security"
-                    className="block px-4 py-3 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors"
+                    className="block px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors"
                   >
                     Bảo mật tài khoản
                   </Link>
                   <Link
                     to="/faq"
-                    className="block px-4 py-3 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors rounded-b-lg"
+                    className="block px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors rounded-b-lg"
                   >
                     Câu hỏi thường gặp
                   </Link>
@@ -150,7 +150,7 @@ const Header = ({ onOpenAuth, onOpenCart, isAuthOpen, isCartOpen, onCloseAuth, o
               {/* Vòng quay - Text Link */}
               <Link
                 to="/spin"
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${navLinkColor(location.pathname === '/spin' || location.pathname.startsWith('/spin'))}`}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${navLinkColor(location.pathname === '/spin' || location.pathname.startsWith('/spin'))}`}
               >
                 Vòng quay
               </Link>
@@ -163,7 +163,7 @@ const Header = ({ onOpenAuth, onOpenCart, isAuthOpen, isCartOpen, onCloseAuth, o
                 <div className="hidden sm:flex items-center bg-gradient-to-r from-primary/10 to-primary/5 dark:from-primary/20 dark:to-primary/10 rounded-lg px-3 py-1.5 border border-primary/20">
                   <div className="flex flex-col items-end mr-2">
                     <span className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">Số dư</span>
-                    <span className="text-sm font-bold text-primary leading-tight">
+                    <span className="text-xs font-bold text-primary leading-tight">
                       {(balance ?? 0).toLocaleString('vi-VN')}đ
                     </span>
                   </div>
@@ -205,7 +205,7 @@ const Header = ({ onOpenAuth, onOpenCart, isAuthOpen, isCartOpen, onCloseAuth, o
                 onClick={onOpenCart}
                 className={`relative p-2 rounded-lg transition-colors ${hoverBg()}`}
               >
-                <FiShoppingCart className={`w-6 h-6 ${iconColor()}`} />
+                <FiShoppingCart className={`w-5 h-5 sm:w-6 sm:h-6 ${iconColor()}`} />
                 {cartCount > 0 && (
                   <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-white text-xs rounded-full flex items-center justify-center">
                     {cartCount}
@@ -220,8 +220,8 @@ const Header = ({ onOpenAuth, onOpenCart, isAuthOpen, isCartOpen, onCloseAuth, o
                     onClick={() => setShowUserMenu(!showUserMenu)}
                     className={`flex items-center space-x-2 p-2 rounded-lg transition-colors ${hoverBg()}`}
                   >
-                    <FiUser className={`w-6 h-6 ${iconColor()}`} />
-                    <span className={`hidden sm:block ${iconColor()}`}>
+                    <FiUser className={`w-5 h-5 sm:w-6 sm:h-6 ${iconColor()}`} />
+                    <span className={`hidden sm:block text-sm ${iconColor()}`}>
                       {user?.fullName}
                     </span>
                   </button>
@@ -278,7 +278,7 @@ const Header = ({ onOpenAuth, onOpenCart, isAuthOpen, isCartOpen, onCloseAuth, o
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => onOpenAuth('login')}
-                    className={`hidden sm:block px-4 py-2 rounded-lg font-medium transition-colors ${
+                    className={`hidden sm:block px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                       isDark
                         ? 'bg-slate-700 text-white hover:bg-slate-600'
                         : 'bg-slate-200 text-slate-900 hover:bg-slate-300'
@@ -288,9 +288,10 @@ const Header = ({ onOpenAuth, onOpenCart, isAuthOpen, isCartOpen, onCloseAuth, o
                   </button>
                   <button
                     onClick={() => onOpenAuth('register')}
-                    className="px-4 py-2 rounded-lg font-medium bg-primary text-white hover:bg-primary-dark transition-colors"
+                    className="px-3 py-2 rounded-lg text-sm font-medium bg-primary text-white hover:bg-primary-dark transition-colors flex items-center gap-2"
                   >
-                    Đăng ký
+                    <FiUserPlus className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="hidden sm:inline">Đăng ký</span>
                   </button>
                 </div>
               )}
@@ -300,7 +301,7 @@ const Header = ({ onOpenAuth, onOpenCart, isAuthOpen, isCartOpen, onCloseAuth, o
                 onClick={() => setShowMobileMenu(!showMobileMenu)}
                 className={`md:hidden p-2 rounded-lg transition-colors ${hoverBg()}`}
               >
-                <FiMenu className={`w-6 h-6 ${iconColor()}`} />
+                <FiMenu className={`w-5 h-5 ${iconColor()}`} />
               </button>
             </div>
           </div>

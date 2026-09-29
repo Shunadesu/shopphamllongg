@@ -146,21 +146,28 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'phamlongfco2623@gmail.com';
 // POST /api/auth/admin/send-otp — Gửi OTP đến email admin cố định
 router.post('/admin/send-otp', async (req, res) => {
   try {
-    const { username } = req.body;
+    const { username, password } = req.body;
 
-    if (!username) {
-      return res.status(400).json({ message: 'Vui lòng nhập tên đăng nhập' });
+    if (!username || !password) {
+      return res.status(400).json({ message: 'Vui lòng nhập tên đăng nhập và mật khẩu' });
     }
 
     const normalizedUsername = username.toLowerCase().trim();
 
-    // Vẫn kiểm tra admin tồn tại để tránh brute-force
+    // Kiểm tra admin tồn tại và xác thực password
     const user = await User.findOne({ username: normalizedUsername, role: 'admin' });
     if (!user) {
-      // Không tiết lộ user có tồn tại hay không
-      return res.status(200).json({
-        message: 'Nếu tài khoản tồn tại, mã OTP đã được gửi đến phamlongfco2623@gmail.com.',
-      });
+      return res.status(401).json({ message: 'Tên đăng nhập hoặc mật khẩu không đúng' });
+    }
+
+    if (!user.isActive) {
+      return res.status(401).json({ message: 'Tài khoản đã bị khóa' });
+    }
+
+    // Xác thực password trước khi gửi OTP
+    const isPasswordValid = await user.matchPassword(password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Tên đăng nhập hoặc mật khẩu không đúng' });
     }
 
     // Check resend cooldown
@@ -176,13 +183,32 @@ router.post('/admin/send-otp', async (req, res) => {
     const { otp, expiresAt } = generateOTP(normalizedUsername);
 
     // Gửi email qua EmailJS đến email admin cố định
+    console.log(`\n[AUTH] 🔐 Bắt đầu gửi OTP cho admin: ${normalizedUsername}`);
+    console.log(`[AUTH] 📧 Email đích: ${ADMIN_EMAIL}`);
+    console.log(`[AUTH] 🔢 OTP: ${otp} (expires in 5 minutes)`);
+    
     try {
       await sendOtpEmail(ADMIN_EMAIL, normalizedUsername, otp, 5);
+      console.log(`[AUTH] ✅ Email OTP đã được gửi thành công`);
     } catch (emailError) {
-      console.error('[OTP] Email send failed:', emailError.message);
-      // Vẫn trả thành công để tránh brute-force
-      console.log(`[OTP] ⚠️  Email failed for ${normalizedUsername} to ${ADMIN_EMAIL}: ${emailError.message}`);
-      console.log(`[OTP] OTP for ${normalizedUsername}: ${otp}`); // TODO: remove in production
+      console.error(`[AUTH] ❌ GỬI EMAIL THẤT BẠI!`);
+      console.error(`[AUTH] Error message: ${emailError.message}`);
+      console.error(`[AUTH] Error stack:`, emailError.stack);
+      
+      // Log OTP vào console khi email fail (để test)
+      console.log(`\n╔═══════════════════════════════════════╗`);
+      console.log(`║  ⚠️  FALLBACK OTP (Email gửi thất bại) ║`);
+      console.log(`╠═══════════════════════════════════════╣`);
+      console.log(`║  Username: ${normalizedUsername.padEnd(25)} ║`);
+      console.log(`║  OTP Code: ${otp.padEnd(25)} ║`);
+      console.log(`║  Expires:  5 minutes ${' '.repeat(14)}║`);
+      console.log(`╚═══════════════════════════════════════╝\n`);
+      
+      // Vẫn trả lỗi để user biết email không gửi được
+      return res.status(500).json({ 
+        message: 'Không thể gửi email OTP. Vui lòng kiểm tra cấu hình EmailJS hoặc xem console log để lấy OTP.',
+        error: emailError.message 
+      });
     }
 
     res.json({
@@ -193,7 +219,7 @@ router.post('/admin/send-otp', async (req, res) => {
     if (error.status === 429) {
       return res.status(429).json({ message: error.message });
     }
-    console.error('Send OTP error:', error);
+    console.error('[OTP] Send OTP error:', error);
     res.status(500).json({ message: 'Lỗi server khi gửi OTP', error: error.message });
   }
 });

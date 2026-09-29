@@ -6,14 +6,13 @@ const AccountCard = ({ account, onBuyNow }) => {
     <div className="card hover:shadow-lg hover:shadow-primary/10 hover:-translate-y-1 transition-all duration-300 group relative">
       {/* Image */}
       <Link to={`/account/${account._id}`} className="block">
-        <div className="relative overflow-hidden rounded-lg mb-2 aspect-video">
+        <div className="relative rounded-lg mb-2 aspect-video bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
           <LazyImage
             src={account.images?.[0]}
             alt={account.title}
-            className="w-full h-32 object-cover group-hover:scale-110 transition-transform duration-300"
+            className="w-full h-full"
+            objectFit="contain"
             skeletonClassName="rounded-lg"
-            width={320}
-            height={180}
           />
           {account.status === 'sold' && (
             <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
@@ -80,12 +79,12 @@ const AccountCard = ({ account, onBuyNow }) => {
             )}
           </div>
 
-          {/* Sale price — blue */}
+          {/* Sale price — animated gradient */}
           <div className='flex items-center gap-1 mb-2'>
             <span className='hidden md:flex text-sm text-slate-400'>
               Giá bán:
             </span>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-300 font-black text-xl">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-300 font-black text-xl animate-gradient bg-[length:200%_auto]">
               {account.price.toLocaleString('vi-VN')}đ
             </span>
           </div>
@@ -101,7 +100,7 @@ const AccountCard = ({ account, onBuyNow }) => {
                 </Link>
                 <button
                   onClick={(e) => onBuyNow?.(e, account)}
-                  className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors w-full"
+                  className="bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-white text-xs font-semibold px-3 py-1.5 rounded transition-all w-full shadow-md hover:shadow-lg"
                 >
                   Mua ngay
                 </button>

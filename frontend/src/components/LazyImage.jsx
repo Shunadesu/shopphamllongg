@@ -31,6 +31,8 @@ export default function LazyImage({
   // IntersectionObserver rootMargin — distance before viewport to start loading
   // Set to "200px" for near-visible images, "500px" for images further down
   rootMargin = '200px',
+  // Object fit mode (default: 'cover')
+  objectFit = 'cover',
   ...rest
 }) {
   const [loaded, setLoaded] = useState(false);
@@ -77,15 +79,31 @@ export default function LazyImage({
   // Use eager only when inView is already true (eager images); lazy images rely on src injection
   const loadingAttr = eager ? 'eager' : undefined;
 
+  // Build image className and style based on objectFit
+  const imgClassName = objectFit === 'contain'
+    ? 'max-w-full max-h-full object-contain transition-opacity duration-300'
+    : 'w-full h-full object-cover transition-opacity duration-300';
+  
+  const imgInlineStyle = objectFit === 'contain'
+    ? { width: 'auto', height: 'auto', ...imgStyle }
+    : imgStyle;
+
+  // Build container className - if no width/height provided, take full parent size
+  // Add flex centering for contain mode
+  const containerClassName = objectFit === 'contain'
+    ? `relative overflow-hidden flex items-center justify-center ${className}`
+    : `relative overflow-hidden ${className}`;
+  const containerStyle = {
+    width: width !== undefined ? (typeof width === 'number' ? `${width}px` : width) : undefined,
+    height: height !== undefined ? (typeof height === 'number' ? `${height}px` : height) : undefined,
+    ...style,
+  };
+
   return (
     <div
       ref={imgRef}
-      className={`relative overflow-hidden ${className}`}
-      style={{
-        width: width !== undefined ? (typeof width === 'number' ? `${width}px` : width) : undefined,
-        height: height !== undefined ? (typeof height === 'number' ? `${height}px` : height) : undefined,
-        ...style,
-      }}
+      className={containerClassName}
+      style={containerStyle}
     >
       {/* Skeleton placeholder — visible until image loads or errors */}
       {!loaded && !error && (
@@ -117,8 +135,8 @@ export default function LazyImage({
           sizes={sizes || undefined}
           onLoad={() => setLoaded(true)}
           onError={() => setError(true)}
-          className={`w-full h-full object-cover transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
-          style={imgStyle}
+          className={`${imgClassName} ${loaded ? 'opacity-100' : 'opacity-0'}`}
+          style={imgInlineStyle}
           {...rest}
         />
       )}

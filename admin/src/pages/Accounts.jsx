@@ -251,6 +251,7 @@ export default function Accounts() {
               <th>Danh mục</th>
               <th>Danh mục con</th>
               <th>Tài khoản / Mật khẩu</th>
+              <th>Thông tin</th>
               <th>Giá gốc</th>
               <th>% Giảm</th>
               <th>Giá bán</th>
@@ -349,6 +350,28 @@ export default function Accounts() {
                       <div className="text-slate-400 truncate" title={account.password2}>
                         MK2: {account.password2}
                       </div>
+                    )}
+                  </td>
+
+                  {/* Thông tin */}
+                  <td className="text-sm min-w-40">
+                    {account.phone && (
+                      <div className="text-slate-300 truncate" title={account.phone}>
+                        SĐT: {account.phone}
+                      </div>
+                    )}
+                    {account.email && (
+                      <div className="text-slate-400 truncate" title={account.email}>
+                        Email: {account.email}
+                      </div>
+                    )}
+                    {account.cccd && (
+                      <div className="text-slate-400 truncate" title={account.cccd}>
+                        CCCD: {account.cccd}
+                      </div>
+                    )}
+                    {!account.phone && !account.email && !account.cccd && (
+                      <span className="text-slate-600">-</span>
                     )}
                   </td>
 
@@ -463,7 +486,7 @@ export default function Accounts() {
               ))
             ) : (
               <tr>
-                <td colSpan="13" className="text-center text-slate-400 py-8">
+                <td colSpan="14" className="text-center text-slate-400 py-8">
                   Chưa có tài khoản nào
                 </td>
               </tr>
