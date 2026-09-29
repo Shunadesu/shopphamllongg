@@ -60,11 +60,10 @@ const YouTubeLazyEmbed = ({ embedUrl }) => {
         <LazyImage
           src={thumbnailUrl}
           alt="YouTube video thumbnail"
-          className="w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full"
           eager
           skeletonClassName="bg-slate-800"
-          width={640}
-          height={360}
+          imgStyle={{ objectFit: 'cover', width: '100%', height: '100%' }}
         />
       )}
       {/* Play button overlay */}

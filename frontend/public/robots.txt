@@ -16,4 +16,4 @@ Disallow: /admin/*
 Crawl-delay: 1
 
 # Sitemap
-Sitemap: https://phamlongfco.online/sitemap.xml
+Sitemap: https://phamlongfco.com/sitemap.xml
