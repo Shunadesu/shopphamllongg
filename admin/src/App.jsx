@@ -38,13 +38,21 @@ function ProtectedRoute({ children }) {
 }
 
 function App() {
-  // Fetch site settings for SEO and favicon
+  const { isAuthenticated, user } = useAuthStore();
+
+  // Fetch site settings for SEO and favicon.
+  // Only fetch when admin is logged in — /admin/settings requires adminAuth,
+  // otherwise the 401 response triggers the response interceptor's logout+redirect,
+  // which causes an infinite reload loop on /login.
   const { data: settings } = useQuery({
     queryKey: ['settings'],
     queryFn: async () => {
       const { data } = await api.get('/admin/settings');
       return data;
     },
+    enabled: isAuthenticated && user?.role === 'admin',
+    retry: false,
+    refetchOnWindowFocus: false,
     staleTime: 10 * 60 * 1000, // 10 minutes
   });
 
