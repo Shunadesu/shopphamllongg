@@ -773,12 +773,20 @@ router.put('/deposits/:id/approve', adminAuth, async (req, res) => {
     deposit.processedBy = req.user._id;
     await deposit.save({ session });
 
-    // Update user balance
-    user.balance += deposit.amount;
+    // Update user balance — dùng `receivedAmount` (số tiền thực nhận) thay vì `amount`
+    // Fallback về `amount` cho dữ liệu cũ (chưa có receivedAmount).
+    const credited = (typeof deposit.receivedAmount === 'number' && deposit.receivedAmount !== null)
+      ? deposit.receivedAmount
+      : deposit.amount;
+    user.balance += credited;
 
-    // Award spins based on cumulative deposit (mỗi 200k = 1 lượt, cộng dồn)
+    // `totalDeposited` và spins tính theo mệnh giá thẻ user bỏ ra (faceAmount) — không phải
+    // số tiền user nhận. Fallback về `amount` cho data cũ / ATM (faceAmount === amount).
+    const depositedBase = (typeof deposit.faceAmount === 'number' && deposit.faceAmount !== null)
+      ? deposit.faceAmount
+      : deposit.amount;
     const prevTotalDeposited = user.totalDeposited || 0;
-    const newTotalDeposited = prevTotalDeposited + deposit.amount;
+    const newTotalDeposited = prevTotalDeposited + depositedBase;
     const spinsAwarded = calculateSpinsAwarded(prevTotalDeposited, newTotalDeposited);
     user.totalDeposited = newTotalDeposited;
     user.spins = (user.spins || 0) + spinsAwarded;

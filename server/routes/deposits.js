@@ -2,6 +2,7 @@ import express from 'express';
 import DepositRequest from '../models/DepositRequest.js';
 import BankAccount from '../models/BankAccount.js';
 import User from '../models/User.js';
+import SiteSetting from '../models/SiteSetting.js';
 import { auth } from '../middleware/auth.js';
 
 // Map bank name (as stored in DB) → VietQR.io bank code
@@ -31,6 +32,48 @@ const getVietqrBankCode = (bankName) => {
 import { depositLimiter } from '../middleware/rateLimiter.js';
 import { sendDepositNotification } from '../services/telegramBot.js';
 import emailChecker from '../services/emailChecker.js';
+
+// === Card exchange rates ===
+// Default fallback nếu admin chưa cấu hình trong SiteSetting.
+const DEFAULT_CARD_RATES = {
+  viettel: 80,
+  mobifone: 75,
+  vinaphone: 75,
+};
+
+// Cache in-memory 30s để khỏi query DB mỗi request.
+const RATE_CACHE_MS = 30 * 1000;
+let _rateCache = { ts: 0, values: null };
+
+async function getCardRates() {
+  if (_rateCache.values && Date.now() - _rateCache.ts < RATE_CACHE_MS) {
+    return _rateCache.values;
+  }
+  try {
+    const docs = await SiteSetting.find({
+      key: { $in: ['card_rate_viettel', 'card_rate_mobifone', 'card_rate_vinaphone'] },
+    }).select('key value').lean();
+    const out = { ...DEFAULT_CARD_RATES };
+    for (const d of docs) {
+      const n = parseInt(d.value, 10);
+      if (Number.isFinite(n) && n >= 0 && n <= 100) {
+        if (d.key === 'card_rate_viettel') out.viettel = n;
+        else if (d.key === 'card_rate_mobifone') out.mobifone = n;
+        else if (d.key === 'card_rate_vinaphone') out.vinaphone = n;
+      }
+    }
+    _rateCache = { ts: Date.now(), values: out };
+    return out;
+  } catch (err) {
+    console.error('[getCardRates] error:', err.message);
+    return DEFAULT_CARD_RATES;
+  }
+}
+
+// Tính số tiền user nhận được từ mệnh giá thẻ theo rate.
+function computeReceivedAmount(faceAmount, rate) {
+  return Math.round((faceAmount * rate) / 100);
+}
 
 const router = express.Router();
 
@@ -132,15 +175,26 @@ router.post('/card-request', auth, async (req, res) => {
     });
 
     if (existingCard) {
-      return res.status(400).json({ 
-        message: 'Thẻ cào này đã được sử dụng trong 24h qua. Vui lòng kiểm tra lại hoặc liên hệ admin.' 
+      return res.status(400).json({
+        message: 'Thẻ cào này đã được sử dụng trong 24h qua. Vui lòng kiểm tra lại hoặc liên hệ admin.'
       });
     }
 
+    // === Tính tỷ lệ quy đổi ===
+    const rates = await getCardRates();
+    const rate = rates[cardType];
+    const faceAmount = amount;                              // mệnh giá thẻ user nạp
+    const receivedAmount = computeReceivedAmount(faceAmount, rate); // tiền user nhận
+
     // Tạo DepositRequest với depositMethod = 'card'
+    // - `amount` giữ giá trị `receivedAmount` để code duyệt hiện tại cộng đúng vào balance
+    // - `faceAmount` và `receivedAmount` lưu lại cho audit
     const depositRequest = new DepositRequest({
       userId: req.user._id,
-      amount,
+      amount: receivedAmount,    // legacy field, dùng cho logic duyệt hiện tại
+      faceAmount,
+      receivedAmount,
+      exchangeRate: rate,
       depositMethod: 'card',
       cardType,
       cardSerial: cardSerial.trim(),
@@ -149,14 +203,34 @@ router.post('/card-request', auth, async (req, res) => {
 
     await depositRequest.save();
 
-    // KHÔNG gửi Telegram notification cho card deposits
+    // Gửi Telegram notification cho admin (định dạng riêng cho thẻ cào)
+    try {
+      await sendDepositNotification(depositRequest);
+    } catch (telegramError) {
+      console.error('Telegram notification error (card):', telegramError);
+      // Không throw để request vẫn thành công phía user
+    }
 
     res.status(201).json({
       message: 'Yêu cầu nạp thẻ đã được gửi. Vui lòng chờ admin kiểm tra và xác nhận.',
-      deposit: depositRequest
+      deposit: depositRequest,
+      rate,
+      faceAmount,
+      receivedAmount,
     });
   } catch (error) {
     console.error('Card deposit request error:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// Public endpoint — frontend đọc tỷ lệ quy đổi để hiển thị trước cho user
+router.get('/card-rates', async (req, res) => {
+  try {
+    const rates = await getCardRates();
+    res.json(rates);
+  } catch (error) {
+    console.error('Get card rates error:', error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 });

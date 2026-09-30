@@ -9,6 +9,8 @@
     "dev": "nodemon server.js",
     "create-admin": "node scripts/createAdmin.js",
     "change-admin-password": "node scripts/changeAdminPassword.js",
+    "delete-admin": "node scripts/deleteAdminByUsername.js",
+    "seed:deposit-config": "node scripts/seedDepositConfig.js",
     "check-transaction": "node scripts/check-transaction-support.js",
     "test-race": "node scripts/test-race-condition.js",
     "test-email": "node scripts/testEmailConnection.js",

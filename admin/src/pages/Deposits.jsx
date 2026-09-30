@@ -273,7 +273,7 @@ export default function Deposits() {
                         </span>
                       </td>
                       <td className="font-mono text-sm text-slate-300">
-                        {deposit.cardSerial?.substring(0, 8)}***
+                        {deposit.cardSerial}
                       </td>
                     </>
                   )}

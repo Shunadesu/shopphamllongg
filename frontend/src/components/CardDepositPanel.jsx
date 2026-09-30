@@ -1,13 +1,14 @@
-import { useState } from 'react';
-import { FiCreditCard, FiHash, FiKey, FiAlertCircle, FiCheck, FiPhone } from 'react-icons/fi';
+import { useState, useEffect } from 'react';
+import { FiCreditCard, FiHash, FiKey, FiAlertCircle, FiCheck, FiPhone, FiPercent } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { useDepositStore } from '../store/data/depositStore';
+import { useSettingsStore } from '../store/data/settingsStore';
 
 const CARD_TYPES = [
   { value: '', label: 'Chọn loại thẻ', disabled: true },
-  { value: 'viettel', label: 'Viettel' },
-  { value: 'mobifone', label: 'Mobifone' },
-  { value: 'vinaphone', label: 'Vinaphone' },
+  { value: 'viettel', label: 'Viettel', color: 'text-red-500', bg: 'bg-red-500/10 border-red-500/30' },
+  { value: 'mobifone', label: 'Mobifone', color: 'text-blue-500', bg: 'bg-blue-500/10 border-blue-500/30' },
+  { value: 'vinaphone', label: 'Vinaphone', color: 'text-purple-500', bg: 'bg-purple-500/10 border-purple-500/30' },
 ];
 
 const AMOUNTS = [
@@ -22,18 +23,46 @@ const AMOUNTS = [
   { value: 500000, label: '500,000đ' },
 ];
 
+const DEFAULT_RATES = { viettel: 80, mobifone: 75, vinaphone: 75 };
+
 export default function CardDepositPanel() {
   const createCardDeposit = useDepositStore((s) => s.createCardDeposit);
-  
+  const settings = useSettingsStore((s) => s.settings);
+  const fetchSettings = useSettingsStore((s) => s.fetchSettings);
+
   const [cardType, setCardType] = useState('');
   const [amount, setAmount] = useState(0);
   const [cardSerial, setCardSerial] = useState('');
   const [cardCode, setCardCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Đảm bảo settings đã được fetch (dù cache có thể stale)
+  useEffect(() => {
+    if (!settings) {
+      fetchSettings(true).catch(() => {});
+    }
+  }, [settings, fetchSettings]);
+
+  // Đọc tỷ lệ từ settings; fallback mặc định nếu admin chưa cấu hình
+  const parseRate = (key, fallback) => {
+    const v = parseInt(settings?.[key], 10);
+    return Number.isFinite(v) && v >= 0 && v <= 100 ? v : fallback;
+  };
+  const rates = {
+    viettel: parseRate('card_rate_viettel', DEFAULT_RATES.viettel),
+    mobifone: parseRate('card_rate_mobifone', DEFAULT_RATES.mobifone),
+    vinaphone: parseRate('card_rate_vinaphone', DEFAULT_RATES.vinaphone),
+  };
+  const cardEnabled = settings?.card_enabled !== 'false';
+
+  const currentRate = cardType ? rates[cardType] : 0;
+  const previewReceived = amount > 0 && currentRate > 0
+    ? Math.round((amount * currentRate) / 100)
+    : 0;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!cardType) {
       toast.error('Vui lòng chọn loại thẻ');
       return;
@@ -53,15 +82,19 @@ export default function CardDepositPanel() {
 
     setSubmitting(true);
     try {
-      await createCardDeposit({
+      const res = await createCardDeposit({
         amount,
         cardType,
         cardSerial: cardSerial.trim(),
         cardCode: cardCode.trim(),
       });
-      
-      toast.success('Đã gửi yêu cầu nạp thẻ cào!');
-      
+
+      const received = res?.receivedAmount ?? previewReceived;
+      const face = res?.faceAmount ?? amount;
+      toast.success(
+        `Đã gửi yêu cầu! Nhận ${received.toLocaleString('vi-VN')}đ từ thẻ mệnh giá ${face.toLocaleString('vi-VN')}đ`
+      );
+
       // Reset form
       setCardType('');
       setAmount(0);
@@ -90,11 +123,45 @@ export default function CardDepositPanel() {
               <p className="text-slate-500 dark:text-slate-400 text-sm">Hỗ trợ Viettel, Mobifone, Vinaphone</p>
             </div>
           </div>
+          <div className="inline-flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-amber-500/15 to-orange-500/15 border border-amber-500/30 rounded-xl">
+            <FiPercent className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+            <span className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wide">
+              Tỷ lệ quy đổi theo từng loại thẻ
+            </span>
+          </div>
         </div>
       </div>
 
+      {/* Thông báo tỷ lệ quy đổi */}
+      <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+        <div className="text-sm text-amber-800 dark:text-amber-300 space-y-2">
+          <p>
+            Xử lý thẻ thì vui lòng liên hệ admin để ib zalo hoặc fb:
+          </p>
+          <p className="font-bold">
+            ⚠️ NẠP CHUYỂN KHOẢN ATM MỤC 1 ĐỂ NHẬN 100% GIÁ TRỊ QUY ĐỔI.
+          </p>
+          <div className="space-y-1 text-xs">
+            <p>⏩ VIETTEL nhận {rates.viettel}% giá trị thẻ</p>
+            <p>⏩ MOBIFONE nhận {rates.mobifone}% giá trị thẻ</p>
+            <p>⏩ VINAPHONE nhận {rates.vinaphone}% giá trị thẻ</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Banner tắt nạp thẻ (admin đã disable) */}
+      {!cardEnabled && (
+        <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-2xl p-4 flex items-start gap-3">
+          <FiAlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+          <div className="text-sm text-red-800 dark:text-red-200">
+            <p className="font-semibold mb-1">Nạp thẻ cào hiện đang tạm ngưng</p>
+            <p className="text-xs">Vui lòng quay lại sau hoặc nạp qua ngân hàng để nhận 100% giá trị.</p>
+          </div>
+        </div>
+      )}
+
       {/* Form Card */}
-      <div className="card">
+      <div className={`card ${!cardEnabled ? 'opacity-60 pointer-events-none' : ''}`}>
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Card Type Select */}
           <div>
@@ -204,9 +271,22 @@ export default function CardDepositPanel() {
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-slate-200 dark:border-slate-700">
-                  <span className="text-slate-600 dark:text-slate-400">Mệnh giá:</span>
-                  <span className="font-bold text-primary text-base">
+                  <span className="text-slate-600 dark:text-slate-400">Mệnh giá thẻ:</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-100 text-base">
                     {amount.toLocaleString('vi-VN')}đ
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-slate-200 dark:border-slate-700">
+                  <span className="text-slate-600 dark:text-slate-400">Tỷ lệ quy đổi:</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold">
+                    <FiPercent className="w-3 h-3" />
+                    {currentRate}% ({CARD_TYPES.find((t) => t.value === cardType)?.label})
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-slate-200 dark:border-slate-700">
+                  <span className="text-slate-600 dark:text-slate-400">Bạn nhận được:</span>
+                  <span className="font-black text-primary text-lg">
+                    {previewReceived.toLocaleString('vi-VN')}đ
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-2">

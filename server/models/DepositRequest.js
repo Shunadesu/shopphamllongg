@@ -10,6 +10,23 @@ const depositRequestSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  // Mệnh giá thẻ user nạp (vd: thẻ 100K = 100000). Chỉ áp dụng cho depositMethod = 'card'.
+  // Với depositMethod = 'bank', faceAmount === amount (1:1).
+  faceAmount: {
+    type: Number,
+    default: null
+  },
+  // Số tiền user thực nhận vào số dư (= faceAmount * rate/100 cho thẻ cào, hoặc = amount cho ATM).
+  // Mặc định = amount để tương thích ngược với dữ liệu cũ.
+  receivedAmount: {
+    type: Number,
+    default: null
+  },
+  // Tỷ lệ quy đổi áp dụng tại thời điểm tạo yêu cầu (vd: 80 = 80%). Lưu lại để audit.
+  exchangeRate: {
+    type: Number,
+    default: null
+  },
   depositMethod: {
     type: String,
     enum: ['bank', 'card'],

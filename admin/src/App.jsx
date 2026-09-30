@@ -24,6 +24,7 @@ import PromotionForm from './pages/PromotionForm';
 import AdminManager from './pages/AdminManager';
 import AdminAccessLog from './pages/AdminAccessLog';
 import DevTools from './pages/DevTools';
+import DepositConfig from './pages/DepositConfig';
 import { useAuthStore } from './store/authStore';
 import SEOHead from './components/SEOHead';
 import api, { getImageUrl } from './utils/api';
@@ -128,6 +129,7 @@ function App() {
             <Route path="accounts/edit/:id" element={<AccountForm />} />
             <Route path="orders" element={<Orders />} />
             <Route path="deposits" element={<Deposits />} />
+            <Route path="deposit-config" element={<DepositConfig />} />
             <Route path="promotions" element={<Promotions />} />
             <Route path="promotions/new" element={<PromotionForm />} />
             <Route path="promotions/edit/:id" element={<PromotionForm />} />

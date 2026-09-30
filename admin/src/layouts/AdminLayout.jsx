@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import {
   FiHome, FiGrid, FiShoppingBag, FiShoppingCart,
-  FiDollarSign, FiUsers, FiImage, FiBell, FiSettings, FiLogOut, FiCreditCard, FiCalendar, FiTag, FiActivity
+  FiDollarSign, FiUsers, FiImage, FiBell, FiSettings, FiLogOut, FiCreditCard, FiCalendar, FiTag, FiActivity, FiPercent
 } from 'react-icons/fi';
 import { GiSpinningBlades } from 'react-icons/gi';
 import { useAuthStore } from '../store/authStore';
@@ -38,6 +38,7 @@ export default function AdminLayout() {
     { path: '/accounts', icon: FiShoppingBag, label: 'Tài khoản' },
     { path: '/orders', icon: FiShoppingCart, label: 'Đơn hàng' },
     { path: '/deposits', icon: FiDollarSign, label: 'Nạp tiền', badge: pendingCount },
+    { path: '/deposit-config', icon: FiPercent, label: 'Cấu hình nạp' },
     { path: '/promotions', icon: FiTag, label: 'Khuyến mãi' },
     { path: '/bank-accounts', icon: FiCreditCard, label: 'Tài khoản NH' },
     { path: '/users', icon: FiUsers, label: 'Người dùng' },

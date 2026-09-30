@@ -84,9 +84,42 @@ export async function sendDepositNotification(deposit) {
 
     const user = depositData.userId;
     const bank = depositData.bankAccountId;
+    const isCard = depositData.depositMethod === 'card';
 
     // Format message
-    const message = `
+    const message = isCard
+      ? `
+🃏 <b>YÊU CẦU NẠP THẺ CÀO MỚI</b>
+
+━━━━━━━━━━━━━━━━━━
+📌 <b>Mã GD:</b> <code>#${depositData._id.toString().slice(-8).toUpperCase()}</code>
+
+👤 <b>Người dùng:</b>
+   • Username: <b>${user?.username || 'N/A'}</b>
+   • Họ tên: ${user?.fullName || 'N/A'}
+   • SĐT: ${user?.phone || 'N/A'}
+
+💳 <b>Loại thẻ:</b> <b>${(depositData.cardType || '').toUpperCase()}</b>
+
+🎫 <b>Số serial:</b> <code>${depositData.cardSerial || 'N/A'}</code>
+🔑 <b>Mã thẻ:</b> <code>${depositData.cardCode || 'N/A'}</code>
+
+💰 <b>Mệnh giá thẻ:</b> <b>${(depositData.faceAmount ?? depositData.amount).toLocaleString('vi-VN')}đ</b>
+📈 <b>Tỷ lệ quy đổi:</b> <b>${depositData.exchangeRate ?? '?'}%</b>
+💵 <b>User nhận được:</b> <b>${depositData.receivedAmount?.toLocaleString('vi-VN') || depositData.amount?.toLocaleString('vi-VN')}đ</b>
+
+⏰ <b>Thời gian:</b> ${new Date(depositData.createdAt).toLocaleString('vi-VN', {
+          timeZone: 'Asia/Ho_Chi_Minh',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        })}
+━━━━━━━━━━━━━━━━━━
+      `.trim()
+      : `
 🔔 <b>YÊU CẦU NẠP TIỀN MỚI</b>
 
 ━━━━━━━━━━━━━━━━━━
@@ -106,17 +139,17 @@ export async function sendDepositNotification(deposit) {
 
 📝 <b>Nội dung CK:</b> <code>${depositData.transferNote || 'N/A'}</code>
 
-⏰ <b>Thời gian:</b> ${new Date(depositData.createdAt).toLocaleString('vi-VN', { 
-      timeZone: 'Asia/Ho_Chi_Minh',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    })}
+⏰ <b>Thời gian:</b> ${new Date(depositData.createdAt).toLocaleString('vi-VN', {
+          timeZone: 'Asia/Ho_Chi_Minh',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        })}
 ━━━━━━━━━━━━━━━━━━
-    `.trim();
+      `.trim();
 
     // Inline keyboard with approve/reject buttons
     const keyboard = {
@@ -141,7 +174,7 @@ export async function sendDepositNotification(deposit) {
       reply_markup: keyboard
     });
 
-    console.log('✅ Telegram notification sent for deposit:', depositData._id);
+    console.log(`✅ Telegram notification sent for ${isCard ? 'card' : 'bank'} deposit:`, depositData._id);
   } catch (error) {
     console.error('❌ Failed to send Telegram notification:', error.message);
   }

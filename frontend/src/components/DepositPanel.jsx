@@ -328,11 +328,23 @@ const DepositPanel = ({ user }) => {
       {/* Hero */}
       <div className="bg-white dark:bg-dark-light border border-slate-200 dark:border-slate-800 rounded-2xl p-6">
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div>
+          <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-black text-slate-900 dark:text-white mb-1 flex items-center gap-2">
               <FiCreditCard className="w-6 h-6 text-primary" />
               Nạp số dư bằng ngân hàng
             </h1>
+            <p className="text-slate-500 dark:text-slate-400 text-sm">
+              Chuyển khoản ngân hàng nội địa — tự động cộng số dư sau 1-3 phút.
+            </p>
+          </div>
+          <div className="inline-flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-emerald-500/15 to-green-500/15 border border-emerald-500/30 rounded-xl shadow-sm">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+            </span>
+            <span className="text-xs font-black text-emerald-700 dark:text-emerald-300 uppercase tracking-wide">
+              Nhận 100% giá trị
+            </span>
           </div>
           {phase !== 'input' && (
             <button
