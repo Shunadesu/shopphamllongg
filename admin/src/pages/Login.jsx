@@ -18,7 +18,23 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [resendCooldown, setResendCooldown] = useState(0);
+  // Dev override: nếu admin_otp_enabled=false thì bỏ qua bước OTP hoàn toàn
+  const [otpEnabled, setOtpEnabled] = useState(true);
   const otpInputRefs = useRef([]);
+
+  // Check trạng thái OTP khi mount — public endpoint, an toàn
+  useEffect(() => {
+    let cancelled = false;
+    api.get('/auth/admin/otp-status')
+      .then(({ data }) => {
+        if (!cancelled) setOtpEnabled(data?.enabled !== false);
+      })
+      .catch(() => {
+        // Nếu lỗi thì mặc định BẬT OTP (giữ hành vi cũ)
+        if (!cancelled) setOtpEnabled(true);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   // Countdown timer for OTP expiry (5 min)
   useEffect(() => {
@@ -76,6 +92,16 @@ export default function Login() {
       });
 
       console.log('✅ [Frontend] API Response:', data);
+
+      // ── DEV BYPASS: backend trả token luôn (admin_otp_enabled=false) ──
+      if (data?.bypassed && data?.token && data?.user) {
+        console.log('⚙️ [Frontend] OTP bypassed — đăng nhập thẳng');
+        login(data.user, data.token);
+        toast.success(data.message || 'Đăng nhập thành công (OTP đang tắt)!');
+        navigate('/');
+        return;
+      }
+
       console.log('📧 Email đích:', 'phamlongfco2623@gmail.com');
       console.log('⏱️  OTP expires in:', data.expiresInSeconds, 'seconds');
 
@@ -245,6 +271,13 @@ export default function Login() {
               ? 'Nhập thông tin để nhận mã OTP qua email'
               : 'Nhập mã OTP đã được gửi qua email'}
           </p>
+          {!otpEnabled && step === 'username' && (
+            <div className="mt-3 inline-block px-3 py-1 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+              <p className="text-xs text-amber-400">
+                ⚙️ OTP đang TẮT (dev mode) — chỉ cần username + password
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Card */}

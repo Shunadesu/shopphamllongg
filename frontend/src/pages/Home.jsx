@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSliders, useCategories, useAccountList, useHasSubcategories } from '../hooks';
 import { FiChevronRight, FiChevronLeft, FiSearch, FiX } from 'react-icons/fi';
-import SEOHead from '../components/SEOHead';
 import AccountCard from '../components/AccountCard';
 import { AccountCardSkeleton } from '../components/SkeletonLoader';
 import BuyNowModal from '../components/BuyNowModal';
@@ -329,12 +328,10 @@ const Home = () => {
 
   return (
     <div className="min-h-screen pt-16">
-      <SEOHead
-        title="Mua Bán Tài Khoản FC Online, FIFA Online 4 Giá Rẻ Uy Tín"
-        description="Shop chuyên mua bán tài khoản FC Online (FIFA Online 4) giá rẻ, uy tín, chất lượng. Tài khoản FO4 đã có sẵn VPL, VLBD, cày rank, đủ mức giá, giao dịch nhanh, bảo hành an toàn."
-        keywords="mua tai khoan fc online, fco, mua tai khoan fifa online 4, tai khoan fo4 gia re, ban tai khoan fc online, fifa online 4 gia re, fc online uy tin, tai khoan fo4 vpl, bp trang"
-        type="website"
-      />
+      {/* SEO — App.jsx <SEOHead /> (or this page's child <SEOHead>) reads
+          settings from useSettingsStore, so whatever the admin saved in
+          Settings → SEO flows through automatically. No hardcoded
+          title/description/keywords here on purpose. */}
 
       {/* Hero Section - Banner: Cột trái Swiper + Cột phải Ảnh/YouTube (tỷ lệ động) */}
       <section>

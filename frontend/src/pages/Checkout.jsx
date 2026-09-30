@@ -47,11 +47,8 @@ const Checkout = () => {
   if (items.length === 0) {
     return (
       <div className="min-h-screen pt-16 pb-6">
-        <SEOHead
-          title="Giỏ hàng trống"
-          description="Giỏ hàng của bạn đang trống. Hãy tiếp tục mua sắm tài khoản game chất lượng cao tại Shop Pham Long."
-          type="website"
-        />
+        {/* Per-page title only — description/keywords/og come from settings. */}
+        <SEOHead title="Giỏ hàng trống" />
         <div className="container-custom">
           <div className="card text-center py-20">
             <p className="text-slate-500 dark:text-slate-400 text-lg mb-6">Giỏ hàng trống</p>
@@ -66,11 +63,8 @@ const Checkout = () => {
 
   return (
     <div className="min-h-screen pt-16 pb-6">
-      <SEOHead
-        title="Thanh toán"
-        description={`Thanh toán ${items.length} tài khoản game với tổng cộng ${totalAmount.toLocaleString('vi-VN')}đ tại Shop Pham Long.`}
-        type="website"
-      />
+      {/* Per-page title only — description/keywords/og come from settings. */}
+      <SEOHead title="Thanh toán" />
       <div className="container-custom">
         <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-8">Thanh toán</h1>
 

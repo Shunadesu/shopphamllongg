@@ -137,11 +137,8 @@ const Profile = () => {
 
   return (
     <div className="min-h-screen pt-16 pb-6">
-      <SEOHead
-        title={seoTitle}
-        description="Quản lý thông tin tài khoản, đơn hàng, nạp tiền và các cài đặt khác."
-        type="website"
-      />
+      {/* Per-page title only — description/keywords/og come from settings. */}
+      <SEOHead title={seoTitle} />
       <div className="container-custom">
         <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4">
           <AccountSidebar />

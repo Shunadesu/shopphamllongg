@@ -59,18 +59,17 @@
       })();
     </script>
 
-    <!-- Favicon — preload critical favicon assets -->
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png" />
-    <link rel="icon" type="image/png" sizes="512x512" href="/favicon-512x512.png" />
-    <!-- SVG favicon — dynamically updated by JS when admin changes favicon setting -->
-    <link rel="icon" type="image/svg+xml" id="favicon-link" href="/favicon.svg" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <!-- Favicon — defaults to /favicon.jpg (committed in public/).
+         When admin uploads a custom favicon via Settings → SEO, the React app
+         replaces the link with id="favicon-link" at runtime (see App.jsx). -->
+    <link rel="icon" type="image/jpeg" sizes="32x32" href="/favicon.jpg" id="favicon-link" />
+    <link rel="icon" type="image/jpeg" sizes="16x16" href="/favicon.jpg" />
+    <link rel="icon" type="image/jpeg" sizes="192x192" href="/favicon.jpg" />
+    <link rel="icon" type="image/jpeg" sizes="512x512" href="/favicon.jpg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicon.jpg" />
 
     <!-- Preload favicon for faster first paint -->
-    <link rel="preload" as="image" type="image/png" href="/favicon-512x512.png" />
-    <link rel="preload" as="image" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preload" as="image" type="image/jpeg" href="/favicon.jpg" />
 
     <!-- Structured Data - Organization Schema -->
     <script type="application/ld+json">
@@ -80,7 +79,7 @@
       "name": "PhamLongFCO",
       "alternateName": ["Shop Pham Long", "ShopPhamLong", "Pham Long FCO"],
       "url": "https://phamlongfco.com",
-      "logo": "https://phamlongfco.com/favicon-512x512.png",
+      "logo": "https://phamlongfco.com/favicon.jpg",
       "description": "Cung cấp tài khoản FC Online chất lượng cao với giá cả hợp lý. Uy tín - Nhanh chóng - Bảo mật.",
       "contactPoint": {
         "@type": "ContactPoint",

@@ -72,45 +72,169 @@ function App() {
   }, []);
 
   // ── Favicon sync ──────────────────────────────────────────────────────────
-  // Track the last applied favicon value and its cache-busting timestamp.
+  // Fallback to /favicon.jpg (committed in public/) whenever admin has not
+  // uploaded a custom favicon. The static <link id="favicon-link"> in
+  // index.html also points here, so the tab icon is never blank.
+  const DEFAULT_FAVICON = '/favicon.jpg';
+
+  // Track the last applied favicon value to avoid redundant DOM work.
   // Using refs (not state) avoids a stale-closure issue where the effect
   // captures the old `settings` value even after a re-render.
   const prevFavicon = useRef(null);
-  const faviconTs = useRef(null);
 
-  // Update favicon whenever settings change.  Guards against:
-  //  1. Running on first mount before settings are loaded (skipped — prevFavicon starts null)
-  //  2. Running when settings.favicon transitions null → value
-  //  3. Running when admin saves a new favicon (value changes → DOM updated with fresh timestamp)
+  // Track the last seen source ("API" vs "HARD-CODED") so we log a source
+  // change ONCE per transition instead of every effect run. Without this,
+  // the 10 s settings poll would re-print "HARD-CODED" on every tick.
+  const prevFaviconSource = useRef(null);
+
+  // Update favicon whenever settings change.
+  //
+  // Implementation notes:
+  //  1. We REMOVE the old link and APPEND a new one (instead of replaceChild)
+  //     so the browser treats it as a brand-new <link> element. Just mutating
+  //     .href on the existing element can be ignored by Chrome's dedicated
+  //     favicon cache when the URL is the same origin/path.
+  //  2. We derive type from the URL extension because index.html sets
+  //     type="image/svg+xml" (for /favicon.svg), but admin uploads are usually
+  //     .jpg/.png/.webp. A MIME mismatch can silently break rendering.
+  //  3. We look up the old link by id first, then fall back to any
+  //     link[rel="icon"] so the code is resilient to template changes.
+  //  4. Cache-bust query param is appended via ?t= or &t= so the URL is always
+  //     unique even when getImageUrl() returns a URL that already has ?query=.
+  //  5. When settings.favicon is missing/empty, we still re-apply the default
+  //     favicon so the tab icon never silently disappears.
   useEffect(() => {
-    const next = settings?.favicon;
-    if (!next || next === prevFavicon.current) return;
+    const next = settings?.favicon || DEFAULT_FAVICON;
+
+    // ── Source tracking ────────────────────────────────────────────────────
+    // Track the favicon SOURCE (API vs HARD-CODED) independently from the URL
+    // so the source is logged ONCE per change instead of on every effect run.
+    // Without this, the 10 s settings poll would spam "API" / "HARD-CODED"
+    // repeatedly, drowning out the actually-useful "URL changed" event.
+    const isFromApi = !!settings?.favicon;
+    const source = isFromApi ? 'API' : 'HARD-CODED';
+    if (source !== prevFaviconSource.current) {
+      const prevSource = prevFaviconSource.current || '(initial)';
+      const sourceColor = isFromApi
+        ? 'background:#10b981;color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold;'
+        : 'background:#f59e0b;color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold;';
+      console.log(
+        `%c[Favicon]%c source → %c${source}%c (${prevSource} → ${source})`,
+        'background:#2563eb;color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold;',
+        'color:inherit',
+        sourceColor,
+        'color:inherit'
+      );
+      prevFaviconSource.current = source;
+    }
+
+    // ── URL apply ─────────────────────────────────────────────────────────
+    // Only run the DOM mutation when the URL actually changes. Same source +
+    // same URL = no-op (no console spam from the 10 s polling).
+    if (next === prevFavicon.current) return;
+    const prev = prevFavicon.current;
     prevFavicon.current = next;
-    faviconTs.current = Date.now();
-    const el = document.getElementById('favicon-link');
-    if (el) el.href = `${getImageUrl(next)}?t=${faviconTs.current}`;
+
+    const ts = Date.now();
+    const baseHref = getImageUrl(next);
+    const newHref = baseHref.includes('?')
+      ? `${baseHref}&t=${ts}`
+      : `${baseHref}?t=${ts}`;
+
+    // Detect MIME type from the path (strip query/fragment first).
+    const pathOnly = baseHref.split('?')[0].split('#')[0].toLowerCase();
+    let mimeType = null;
+    if (pathOnly.endsWith('.svg')) mimeType = 'image/svg+xml';
+    else if (pathOnly.endsWith('.png')) mimeType = 'image/png';
+    else if (pathOnly.endsWith('.jpg') || pathOnly.endsWith('.jpeg')) mimeType = 'image/jpeg';
+    else if (pathOnly.endsWith('.webp')) mimeType = 'image/webp';
+    else if (pathOnly.endsWith('.ico')) mimeType = 'image/x-icon';
+    else if (pathOnly.endsWith('.gif')) mimeType = 'image/gif';
+
+    console.log(
+      `%c[Favicon]%c url changed\n  prev: ${prev || '(none)'}\n  next: ${newHref}\n  type: ${mimeType || '(auto)'}`,
+      'background:#2563eb;color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold;',
+      'color:inherit'
+    );
+
+    // Locate the existing favicon link (by id first, then by rel).
+    const oldLink =
+      document.getElementById('favicon-link') ||
+      document.querySelector('link[rel="icon"]');
+
+    // Build the replacement <link> BEFORE removing the old one so we don't
+    // briefly end up with no favicon link in the DOM.
+    const newLink = document.createElement('link');
+    newLink.rel = 'icon';
+    newLink.id = 'favicon-link';
+    if (mimeType) newLink.type = mimeType;
+    newLink.href = newHref;
+
+    if (oldLink && oldLink.parentNode) {
+      oldLink.parentNode.removeChild(oldLink);
+    }
+    document.head.appendChild(newLink);
+
+    console.log(
+      `%c[Favicon]%c ✅ applied to <link id="favicon-link">`,
+      'background:#10b981;color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold;',
+      'color:inherit'
+    );
   }, [settings?.favicon, settings]);
 
-  // Polling fallback: re-fetch settings every 30 s so a user who opened the page
-  // BEFORE the admin saved a new favicon still sees it within half a minute.
+  // ── Real-time settings sync ───────────────────────────────────────────────
+  // Three signals can trigger a fresh settings fetch on the frontend:
+  //   1. Polling every 10 s (cheap fallback for any signal we miss)
+  //   2. visibilitychange — when the user returns to the tab
+  //   3. BroadcastChannel 'settings-updated' (instant cross-tab signal from admin)
+  //   4. window 'storage' event (fallback for older browsers)
+  //
+  // On every trigger we clear the TTL cache and force a refetch so the
+  // new favicon / seoTitle / etc. show up immediately instead of waiting
+  // up to 30 minutes (the store's stale threshold).
   useEffect(() => {
-    const id = setInterval(() => {
-      useSettingsStore.getState().fetchSettings(true).catch(() => {});
-    }, 30_000);
-    return () => clearInterval(id);
-  }, []);
-
-  // Listen for cross-tab settings-updated signal dispatched by the admin panel.
-  useEffect(() => {
-    const onStorage = () => {
+    const fetchFresh = () => {
       useSettingsStore.getState().clearCache();
       useSettingsStore.getState().fetchSettings(true).catch(() => {});
     };
+
+    // 1. Polling fallback
+    const pollId = setInterval(fetchFresh, 10_000);
+
+    // 2. Visibility — when user returns to the tab
+    const onVisibility = () => {
+      if (!document.hidden) fetchFresh();
+    };
+
+    // 3. BroadcastChannel — instant cross-tab push from admin
+    let bc = null;
+    try {
+      bc = new BroadcastChannel('settings-updated');
+      bc.onmessage = (e) => {
+        if (e?.data?.type === 'settings-updated') fetchFresh();
+      };
+    } catch (_) {
+      // Browser doesn't support BroadcastChannel — fine, we have storage event fallback.
+    }
+
+    // 4. localStorage 'storage' event — works in older browsers and as a fallback
+    const onStorage = (e) => {
+      if (e.key === 'settings-updated') fetchFresh();
+    };
+
+    // Custom event for in-tab admin → frontend (e.g. preview iframe)
+    const onSettingsEvent = () => fetchFresh();
+
+    document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('storage', onStorage);
-    window.addEventListener('settings-updated', onStorage);
+    window.addEventListener('settings-updated', onSettingsEvent);
+
     return () => {
+      clearInterval(pollId);
+      document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('storage', onStorage);
-      window.removeEventListener('settings-updated', onStorage);
+      window.removeEventListener('settings-updated', onSettingsEvent);
+      if (bc) bc.close();
     };
   }, []);
 
@@ -169,15 +293,10 @@ function App() {
   return (
     <div className="min-h-screen flex flex-col">
       <ScrollToTop />
-      {/* Default SEO Head - will be overridden by child pages */}
-      <SEOHead
-        title={settings?.seoTitle}
-        description={settings?.seoDescription}
-        keywords={settings?.seoKeywords}
-        ogImage={settings?.ogImage}
-        favicon={settings?.favicon}
-        twitterCard={settings?.twitterCard || 'summary'}
-      />
+      {/* Default SEO Head - reads settings from useSettingsStore automatically,
+          so admin SEO settings flow all the way through to the tab title.
+          Individual pages can still override via props (e.g. AccountDetail). */}
+      <SEOHead />
       {/* Pass drawer handlers to Header */}
       <Header
         onOpenAuth={handleOpenAuth}

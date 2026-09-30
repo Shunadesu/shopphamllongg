@@ -6,7 +6,6 @@ import { useCartStore } from '../store/cartStore';
 import { useCategories, useAccountList } from '../hooks';
 import { ShopSkeleton, AccountCardSkeleton } from '../components/SkeletonLoader';
 import { FiSearch, FiTag, FiShoppingCart, FiZap, FiChevronRight, FiChevronLeft } from 'react-icons/fi';
-import SEOHead from '../components/SEOHead';
 import BuyNowModal from '../components/BuyNowModal';
 import api from '../utils/api';
 import LazyImage from '../components/LazyImage';
@@ -421,12 +420,9 @@ const Shop = () => {
 
   return (
     <div className="min-h-screen pt-16 pb-6">
-      <SEOHead
-        title="Cửa Hàng Tài Khoản Game Giá Rẻ"
-        description="Mua tài khoản game giá rẻ, chất lượng cao. Liên Quân, PUBG, Free Fire, Genshin Impact với giá tốt nhất thị trường."
-        keywords="cua hang tai khoan game, tai khoan game gia re, mua tai khoan, lien quan, pubg, free fire"
-        type="website"
-      />
+      {/* SEO — App.jsx <SEOHead /> reads settings from useSettingsStore,
+          so admin SEO flows through automatically. No hardcoded
+          title/description/keywords here on purpose. */}
       {/* Breadcrumb Navigation */}
       <div className="container-custom mb-4">
         <nav className="flex items-center gap-2 text-sm">

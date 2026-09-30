@@ -1,6 +1,7 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import SiteSetting from '../models/SiteSetting.js';
 import { auth } from '../middleware/auth.js';
 import { generateOTP, verifyOTP, getResendCooldown } from '../services/otpService.js';
 import { sendOtpEmail } from '../services/emailSender.js';
@@ -138,6 +139,19 @@ router.get('/me', auth, async (req, res) => {
   }
 });
 
+// GET /api/auth/admin/otp-status - Cho Login page biết OTP có đang bật không
+// Public (không cần auth) — chỉ trả boolean, không leak data nhạy cảm
+router.get('/admin/otp-status', async (req, res) => {
+  try {
+    const setting = await SiteSetting.findOne({ key: 'admin_otp_enabled' });
+    const enabled = !setting || setting.value !== 'false';
+    res.json({ enabled });
+  } catch (error) {
+    console.error('[OTP-STATUS] Error:', error);
+    res.json({ enabled: true });
+  }
+});
+
 // ==================== ADMIN OTP AUTH ====================
 
 // Email nhận OTP — cố định cho admin
@@ -168,6 +182,21 @@ router.post('/admin/send-otp', async (req, res) => {
     const isPasswordValid = await user.matchPassword(password);
     if (!isPasswordValid) {
       return res.status(401).json({ message: 'Tên đăng nhập hoặc mật khẩu không đúng' });
+    }
+
+    // ── DEV BYPASS: nếu admin_otp_enabled=false thì trả token luôn ──
+    const otpSetting = await SiteSetting.findOne({ key: 'admin_otp_enabled' });
+    const otpBypassed = otpSetting && otpSetting.value === 'false';
+
+    if (otpBypassed) {
+      const token = generateToken(user._id);
+      console.log(`[AUTH] ⚙️ OTP bypassed for admin ${normalizedUsername} (admin_otp_enabled=false)`);
+      return res.json({
+        message: 'Đăng nhập thành công (OTP bypassed for dev).',
+        token,
+        user: safeUser(user),
+        bypassed: true,
+      });
     }
 
     // Check resend cooldown

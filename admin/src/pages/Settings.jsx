@@ -5,6 +5,46 @@ import toast from 'react-hot-toast';
 import { FiSave, FiPhone, FiFacebook, FiMail, FiImage, FiUpload, FiLink, FiEdit2, FiTrash2, FiSearch, FiGlobe, FiSun, FiMoon } from 'react-icons/fi';
 import { FormSkeleton } from '../components/SkeletonLoader';
 
+// Strip the leading base URL (e.g. "https://phamlongfco.online") from a
+// possibly-full URL so the stored value is always a relative path
+// ("/uploads/xxx.jpg"). Avoids duplicating the host in the DB and keeps
+// the form consistent regardless of where the admin is editing from
+// (dev / production / different domain).
+//
+// Examples:
+//   toRelativePath('https://phamlongfco.online/uploads/abc.jpg') → '/uploads/abc.jpg'
+//   toRelativePath('/uploads/abc.jpg')                           → '/uploads/abc.jpg'
+//   toRelativePath('')                                           → ''
+//   toRelativePath('https://x.com/p?a=1#h')                      → '/p?a=1#h'
+const toRelativePath = (url) => {
+  if (!url) return '';
+  try {
+    // If it parses as a full URL, return just the path portion.
+    const parsed = new URL(url);
+    return (parsed.pathname || '') + (parsed.search || '') + (parsed.hash || '');
+  } catch {
+    // Not a full URL — treat as already-relative.
+    return url;
+  }
+};
+
+// Always show the absolute production URL inside form inputs so the admin
+// sees exactly what the frontend will request, regardless of whether the
+// admin is running in dev mode (where `imageBaseURL` is empty and
+// `getImageUrl()` would otherwise leave the path relative).
+//
+// This is only used for the editable input display. Image previews
+// (`<img src>`) still go through `getImageUrl()` so dev mode can actually
+// load the local image.
+const DISPLAY_BASE_URL = 'https://phamlongfco.online';
+
+const getDisplayUrl = (path) => {
+  if (!path) return '';
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  const withSlash = path.startsWith('/') ? path : `/${path}`;
+  return `${DISPLAY_BASE_URL}${withSlash}`;
+};
+
 export default function Settings() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('general');
@@ -83,8 +123,15 @@ export default function Settings() {
     onSuccess: () => {
       queryClient.invalidateQueries(['settings']);
       toast.success('Cập nhật cài đặt thành công');
-      // Notify frontend to re-fetch settings (cross-tab via localStorage, same-tab via custom event)
-      localStorage.setItem('settings-updated', Date.now().toString());
+      // Notify frontend to re-fetch settings (cross-tab via localStorage,
+      // same-tab via custom event, instant cross-tab via BroadcastChannel).
+      const ts = Date.now().toString();
+      try {
+        const bc = new BroadcastChannel('settings-updated');
+        bc.postMessage({ type: 'settings-updated', ts });
+        bc.close();
+      } catch (_) {}
+      localStorage.setItem('settings-updated', ts);
       window.dispatchEvent(new Event('settings-updated'));
     },
     onError: (error) => {
@@ -120,8 +167,14 @@ export default function Settings() {
     onSuccess: () => {
       queryClient.invalidateQueries(["settings"]);
       toast.success("Lưu logo thành công");
-      // Notify other tabs (frontend) to re-fetch settings
-      localStorage.setItem('settings-updated', Date.now().toString());
+      // Notify frontend to re-fetch settings (BroadcastChannel + storage fallback)
+      const ts = Date.now().toString();
+      try {
+        const bc = new BroadcastChannel('settings-updated');
+        bc.postMessage({ type: 'settings-updated', ts });
+        bc.close();
+      } catch (_) {}
+      localStorage.setItem('settings-updated', ts);
       window.dispatchEvent(new Event('settings-updated'));
       window.location.reload();
     },
@@ -176,14 +229,50 @@ export default function Settings() {
     onSuccess: (response) => {
       queryClient.invalidateQueries(['settings']);
       toast.success('Lưu cấu hình SEO thành công');
-      // Notify other tabs (frontend) to re-fetch settings
-      localStorage.setItem('settings-updated', Date.now().toString());
+      // Notify other tabs (frontend) to re-fetch settings — broadcast via
+      // both BroadcastChannel (instant) and localStorage (fallback).
+      const ts = Date.now().toString();
+      try {
+        const bc = new BroadcastChannel('settings-updated');
+        bc.postMessage({ type: 'settings-updated', key: 'favicon', ts });
+        bc.close();
+      } catch (_) {
+        // Older browsers — fall back to localStorage event.
+      }
+      localStorage.setItem('settings-updated', ts);
       window.dispatchEvent(new Event('settings-updated'));
-      // Immediately update the favicon DOM in the admin panel
+      // Immediately update the favicon DOM in the admin panel.
+      // Remove the old link and append a brand-new one so the browser refreshes
+      // its favicon cache, and derive type from the URL extension — otherwise
+      // a .jpg favicon with type="image/svg+xml" is silently ignored by some
+      // browsers.
       const faviconSetting = response.settings?.find((s) => s.key === 'favicon');
       if (faviconSetting) {
-        const faviconLink = document.querySelector('link[rel="icon"]');
-        if (faviconLink) faviconLink.href = getImageUrl(faviconSetting.value);
+        const tsNow = Date.now();
+        const baseHref = getImageUrl(faviconSetting.value);
+        const newHref = baseHref.includes('?')
+          ? `${baseHref}&t=${tsNow}`
+          : `${baseHref}?t=${tsNow}`;
+        const pathOnly = baseHref.split('?')[0].split('#')[0].toLowerCase();
+        let mimeType = null;
+        if (pathOnly.endsWith('.svg')) mimeType = 'image/svg+xml';
+        else if (pathOnly.endsWith('.png')) mimeType = 'image/png';
+        else if (pathOnly.endsWith('.jpg') || pathOnly.endsWith('.jpeg')) mimeType = 'image/jpeg';
+        else if (pathOnly.endsWith('.webp')) mimeType = 'image/webp';
+        else if (pathOnly.endsWith('.ico')) mimeType = 'image/x-icon';
+
+        const oldLink =
+          document.getElementById('favicon-link') ||
+          document.querySelector('link[rel="icon"]');
+        const newLink = document.createElement('link');
+        newLink.rel = 'icon';
+        newLink.id = 'favicon-link';
+        if (mimeType) newLink.type = mimeType;
+        newLink.href = newHref;
+        if (oldLink && oldLink.parentNode) {
+          oldLink.parentNode.removeChild(oldLink);
+        }
+        document.head.appendChild(newLink);
       }
       // Reload to reflect all SEO changes (favicon, og image, etc.)
       window.location.reload();
@@ -323,7 +412,9 @@ export default function Settings() {
   };
 
   const handleLogoUrlChange = (url) => {
-    setLogoForm({ logo: url });
+    // Strip any leading base URL so the stored value stays a relative path.
+    // The displayed value goes through getImageUrl() and includes the host.
+    setLogoForm({ logo: toRelativePath(url) });
   };
 
   const handleSaveLogo = (e) => {
@@ -589,7 +680,7 @@ export default function Settings() {
               </label>
               <input
                 type="url"
-                value={getImageUrl(logoForm.logo) || ''}
+                value={getDisplayUrl(logoForm.logo) || ''}
                 onChange={(e) => handleLogoUrlChange(e.target.value)}
                 className="input-field"
                 placeholder="https://example.com/logo.png"
@@ -809,8 +900,8 @@ export default function Settings() {
               </div>
               <input
                 type="url"
-                value={getImageUrl(seoForm.favicon) || ''}
-                onChange={(e) => setSeoForm({ ...seoForm, favicon: e.target.value })}
+                value={getDisplayUrl(seoForm.favicon) || ''}
+                onChange={(e) => setSeoForm({ ...seoForm, favicon: toRelativePath(e.target.value) })}
                 className="input-field mt-3"
                 placeholder="Hoặc nhập URL favicon"
               />
@@ -859,8 +950,8 @@ export default function Settings() {
               </div>
               <input
                 type="url"
-                value={getImageUrl(seoForm.ogImage) || ''}
-                onChange={(e) => setSeoForm({ ...seoForm, ogImage: e.target.value })}
+                value={getDisplayUrl(seoForm.ogImage) || ''}
+                onChange={(e) => setSeoForm({ ...seoForm, ogImage: toRelativePath(e.target.value) })}
                 className="input-field mt-3"
                 placeholder="Hoặc nhập URL ảnh OG"
               />

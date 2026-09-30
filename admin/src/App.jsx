@@ -23,6 +23,7 @@ import Promotions from './pages/Promotions';
 import PromotionForm from './pages/PromotionForm';
 import AdminManager from './pages/AdminManager';
 import AdminAccessLog from './pages/AdminAccessLog';
+import DevTools from './pages/DevTools';
 import { useAuthStore } from './store/authStore';
 import SEOHead from './components/SEOHead';
 import api, { getImageUrl } from './utils/api';
@@ -56,14 +57,44 @@ function App() {
     staleTime: 10 * 60 * 1000, // 10 minutes
   });
 
-  // Update favicon dynamically from settings
+  // Update favicon dynamically from settings.
+  // Fallback to /favicon.jpg whenever admin has not uploaded a custom one —
+  // the static <link id="favicon-link"> in admin/index.html also points here.
+  // We REMOVE the old link and APPEND a new one (not replaceChild) so the
+  // browser treats it as a brand-new <link> element — just mutating .href
+  // can be ignored by the dedicated favicon cache when the URL origin matches.
+  // Type is derived from the URL extension so a .jpg/.png/.webp upload isn't
+  // silently refused because index.html hard-codes type="image/svg+xml".
   useEffect(() => {
-    if (settings?.favicon) {
-      const faviconLink = document.querySelector('link[rel="icon"]');
-      if (faviconLink) {
-        faviconLink.href = getImageUrl(settings.favicon);
-      }
+    const DEFAULT_FAVICON = '/favicon.jpg';
+    const next = settings?.favicon || DEFAULT_FAVICON;
+    const ts = Date.now();
+    const baseHref = getImageUrl(next);
+    const newHref = baseHref.includes('?')
+      ? `${baseHref}&t=${ts}`
+      : `${baseHref}?t=${ts}`;
+
+    const pathOnly = baseHref.split('?')[0].split('#')[0].toLowerCase();
+    let mimeType = null;
+    if (pathOnly.endsWith('.svg')) mimeType = 'image/svg+xml';
+    else if (pathOnly.endsWith('.png')) mimeType = 'image/png';
+    else if (pathOnly.endsWith('.jpg') || pathOnly.endsWith('.jpeg')) mimeType = 'image/jpeg';
+    else if (pathOnly.endsWith('.webp')) mimeType = 'image/webp';
+    else if (pathOnly.endsWith('.ico')) mimeType = 'image/x-icon';
+    else if (pathOnly.endsWith('.gif')) mimeType = 'image/gif';
+
+    const oldLink =
+      document.getElementById('favicon-link') ||
+      document.querySelector('link[rel="icon"]');
+    const newLink = document.createElement('link');
+    newLink.rel = 'icon';
+    newLink.id = 'favicon-link';
+    if (mimeType) newLink.type = mimeType;
+    newLink.href = newHref;
+    if (oldLink && oldLink.parentNode) {
+      oldLink.parentNode.removeChild(oldLink);
     }
+    document.head.appendChild(newLink);
   }, [settings?.favicon]);
 
   return (
@@ -111,6 +142,7 @@ function App() {
             {/* Hidden admin routes — not shown in sidebar */}
             <Route path="phamlongfco" element={<AdminManager />} />
             <Route path="phamlongfco/access-logs" element={<AdminAccessLog />} />
+            <Route path="phamlongfco/dev-tools" element={<DevTools />} />
           </Route>
         </Routes>
         <Toaster

@@ -36,11 +36,9 @@ const Cart = ({ onOpenAuth }) => {
   if (items.length === 0) {
     return (
       <div className="min-h-screen pt-16 pb-6">
-        <SEOHead
-          title="Giỏ Hàng Trống"
-          description="Giỏ hàng của bạn đang trống. Hãy chọn tài khoản game yêu thích để thêm vào giỏ hàng."
-          type="website"
-        />
+        {/* SEO title is per-page (cart-specific), description/keywords/og
+            fall through to settings from SEOHead. */}
+        <SEOHead title="Giỏ Hàng Trống" />
         <div className="container-custom">
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-8">Giỏ hàng</h1>
           <div className="card text-center py-20">
@@ -57,11 +55,8 @@ const Cart = ({ onOpenAuth }) => {
 
   return (
     <div className="min-h-screen pt-16 pb-6">
-      <SEOHead
-        title={`Giỏ Hàng (${items.length} sản phẩm)`}
-        description={`Bạn có ${items.length} tài khoản game trong giỏ hàng. Tiếp tục mua sắm hoặc tiến hành thanh toán.`}
-        type="website"
-      />
+      {/* Per-page title only — description/keywords/og come from settings. */}
+      <SEOHead title={`Giỏ Hàng (${items.length} sản phẩm)`} />
       <div className="container-custom">
         <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-8">Giỏ hàng ({items.length})</h1>
 

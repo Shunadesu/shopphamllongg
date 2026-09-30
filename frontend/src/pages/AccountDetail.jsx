@@ -162,11 +162,14 @@ const AccountDetail = ({ onOpenAuth }) => {
 
   return (
     <div className="min-h-screen pt-16 pb-4">
+      {/* Per-account SEO. ogImage must be an absolute URL or social
+          crawlers (Facebook, Twitter) won't pick it up. getImageUrl() handles
+          both dev (relative) and prod (full URL) automatically. */}
       <SEOHead
         title={account?.title || 'Chi Tiết Tài Khoản'}
         description={`Mua tài khoản ${account?.title} - Rank ${account?.rank} với giá chỉ ${account?.price?.toLocaleString('vi-VN')}đ. Tài khoản game chất lượng cao, bảo mật.`}
         keywords={`mua tai khoan ${account?.categoryId?.name || 'game'}, tai khoan ${account?.rank || 'game'}, ${account?.title}`}
-        ogImage={account?.images?.[0]}
+        ogImage={getImageUrl(account?.images?.[0])}
         type="product"
       />
       <div className="container-custom">

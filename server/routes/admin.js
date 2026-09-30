@@ -1610,4 +1610,67 @@ router.get('/admins/access-logs', adminAuth, async (req, res) => {
   }
 });
 
+// ==================== DEV SETTINGS ====================
+// Cờ dành cho nhà phát triển — chỉ bật/tắt từ trang /phamlongfco/dev-tools
+// Hiện tại hỗ trợ: admin_otp_enabled (mặc định 'true')
+
+const DEFAULT_DEV_SETTINGS = {
+  admin_otp_enabled: 'true',
+};
+
+// GET /api/admin/dev/settings — Trả về object các dev settings
+router.get('/dev/settings', adminAuth, async (req, res) => {
+  try {
+    const stored = await SiteSetting.find({ key: { $in: Object.keys(DEFAULT_DEV_SETTINGS) } });
+    const result = { ...DEFAULT_DEV_SETTINGS };
+    for (const s of stored) {
+      result[s.key] = s.value;
+    }
+    res.json(result);
+  } catch (error) {
+    console.error('[DEV SETTINGS] Get error:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// PUT /api/admin/dev/settings — Cập nhật 1 hoặc nhiều dev settings
+router.put('/dev/settings', adminAuth, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const entries = Object.entries(body).filter(
+      ([key, value]) =>
+        Object.prototype.hasOwnProperty.call(DEFAULT_DEV_SETTINGS, key) &&
+        value !== undefined &&
+        value !== null
+    );
+
+    if (entries.length === 0) {
+      return res.status(400).json({ message: 'Không có dev setting hợp lệ để cập nhật' });
+    }
+
+    const results = [];
+    for (const [key, value] of entries) {
+      const normalized = String(value);
+      const setting = await SiteSetting.findOneAndUpdate(
+        { key },
+        {
+          key,
+          value: normalized,
+          type: 'boolean',
+          description: 'Dev setting',
+          updatedAt: new Date(),
+        },
+        { upsert: true, returnDocument: 'after' }
+      );
+      results.push({ key, value: setting.value });
+    }
+
+    console.log(`[DEV SETTINGS] Updated by ${req.user?.username || 'admin'}:`, results);
+    res.json({ message: 'Đã cập nhật dev settings', settings: results });
+  } catch (error) {
+    console.error('[DEV SETTINGS] Update error:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
 export default router;
