@@ -31,6 +31,14 @@ export default function Accounts() {
     return imgs;
   };
 
+  // Trích số thứ tự từ mã "TÀI KHOẢN FO4 #N" → trả về "N" (string)
+  // hoặc null nếu không parse được.
+  const extractSeq = (code) => {
+    if (!code || typeof code !== 'string') return null;
+    const match = code.match(/#(\d+)$/);
+    return match ? match[1] : null;
+  };
+
   // Use admin endpoint to get full account data
   const { data: accountsData, isLoading } = useQuery({
     queryKey: ['admin-accounts', selectedCategory, selectedSubcategory, statusFilter, searchTerm, page, limit],
@@ -248,6 +256,8 @@ export default function Accounts() {
             <tr>
               <th className="w-16">Hình</th>
               <th>Tiêu đề</th>
+              <th>Mã</th>
+              <th className="w-20">STT</th>
               <th>Danh mục</th>
               <th>Danh mục con</th>
               <th>Tài khoản / Mật khẩu</th>
@@ -323,6 +333,29 @@ export default function Accounts() {
                   {/* Tiêu đề */}
                   <td className="font-medium text-slate-100 max-w-xs">
                     <div className="truncate" title={account.title}>{account.title}</div>
+                  </td>
+
+                  {/* Mã tài khoản */}
+                  <td>
+                    <span
+                      className="text-xs font-mono text-slate-400 whitespace-nowrap"
+                      title={account.code || ''}
+                    >
+                      {account.code || '-'}
+                    </span>
+                  </td>
+
+                  {/* STT — số thứ tự trích từ mã */}
+                  <td>
+                    {(() => {
+                      const seq = extractSeq(account.code);
+                      if (!seq) return <span className="text-slate-600">-</span>;
+                      return (
+                        <span className="text-xs font-mono text-cyan-400 font-semibold whitespace-nowrap">
+                          #{seq}
+                        </span>
+                      );
+                    })()}
                   </td>
 
                   {/* Danh mục */}
@@ -486,7 +519,7 @@ export default function Accounts() {
               ))
             ) : (
               <tr>
-                <td colSpan="14" className="text-center text-slate-400 py-8">
+                <td colSpan="16" className="text-center text-slate-400 py-8">
                   Chưa có tài khoản nào
                 </td>
               </tr>

@@ -28,6 +28,7 @@ export default function AccountForm() {
 
   const [formData, setFormData] = useState({
     title: '',
+    code: '',
     category: '',
     subcategory: '',
     price: '',
@@ -70,6 +71,7 @@ export default function AccountForm() {
     if (account) {
       setFormData({
         title: account.title || '',
+        code: account.code || '',
         category: account.category?._id || account.categoryId?._id || account.categoryId || '',
         subcategory: account.subcategory?._id || account.subcategoryId?._id || account.subcategoryId || '',
         price: account.price || '',
@@ -159,6 +161,7 @@ export default function AccountForm() {
 
     const payload = {
       title: formData.title,
+      code: formData.code || undefined,
       categoryId: formData.category,
       subcategoryId: formData.subcategory || null,
       originalPrice: Number(formData.originalPrice),
@@ -255,6 +258,19 @@ export default function AccountForm() {
                 placeholder="VD: Tài khoản FIFA Online rank Vàng"
                 required
               />
+            </FormGroup>
+
+            <FormGroup label="Mã tài khoản" fullWidth>
+              <input
+                type="text"
+                value={formData.code}
+                onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                className="input-field"
+                placeholder="Để trống để hệ thống tự sinh: TÀI KHOẢN FO4 #{số}"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Khi tạo mới, nếu để trống hệ thống sẽ tự cấp mã cố định. Khi sửa, có thể thay đổi mã bằng tay.
+              </p>
             </FormGroup>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

@@ -5,26 +5,11 @@ import {
 } from 'react-icons/fi';
 import { GiSpinningBlades } from 'react-icons/gi';
 import { useAuthStore } from '../store/authStore';
-import { useQuery } from '@tanstack/react-query';
-import api from '../utils/api';
 import toast from 'react-hot-toast';
 
 export default function AdminLayout() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
-
-  // Fetch pending deposits count
-  const { data: pendingData } = useQuery({
-    queryKey: ['deposits-pending-count'],
-    queryFn: async () => {
-      const { data } = await api.get('/admin/deposits/pending-count');
-      return data;
-    },
-    refetchInterval: 30000, // Refetch every 30 seconds
-    retry: false,
-  });
-
-  const pendingCount = pendingData?.count || 0;
 
   const handleLogout = () => {
     logout();
@@ -37,7 +22,7 @@ export default function AdminLayout() {
     { path: '/categories', icon: FiGrid, label: 'Danh mục' },
     { path: '/accounts', icon: FiShoppingBag, label: 'Tài khoản' },
     { path: '/orders', icon: FiShoppingCart, label: 'Đơn hàng' },
-    { path: '/deposits', icon: FiDollarSign, label: 'Nạp tiền', badge: pendingCount },
+    { path: '/deposits', icon: FiDollarSign, label: 'Nạp tiền' },
     { path: '/deposit-config', icon: FiPercent, label: 'Cấu hình nạp' },
     { path: '/promotions', icon: FiTag, label: 'Khuyến mãi' },
     { path: '/bank-accounts', icon: FiCreditCard, label: 'Tài khoản NH' },
@@ -75,11 +60,6 @@ export default function AdminLayout() {
             >
               <item.icon className="text-lg" />
               <span className="font-medium flex-1">{item.label}</span>
-              {item.badge > 0 && (
-                <span className="bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded-full min-w-[24px] text-center">
-                  {item.badge}
-                </span>
-              )}
             </NavLink>
           ))}
         </nav>

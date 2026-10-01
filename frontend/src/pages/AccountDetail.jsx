@@ -439,7 +439,7 @@ const AccountDetail = ({ onOpenAuth }) => {
                     <LazyImage
                       src={url}
                       alt={`Hình ${idx + 1}`}
-                      className="w-full object-contain max-h-[500px]"
+                      className="w-full object-contain"
                       skeletonClassName="rounded"
                     />
                   </div>

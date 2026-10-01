@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import Counter from './Counter.js';
 
 const gameAccountSchema = new mongoose.Schema({
   categoryId: {
@@ -15,9 +16,6 @@ const gameAccountSchema = new mongoose.Schema({
     type: String,
     unique: true,
     sparse: true,
-    default: function() {
-      return 'ACC' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substr(2, 3).toUpperCase();
-    }
   },
   title: {
     type: String,
@@ -100,6 +98,28 @@ const gameAccountSchema = new mongoose.Schema({
   }
 }, {
   timestamps: true
+});
+
+// Tự sinh mã cố định "TÀI KHOẢN FO4 #{globalSeq}" khi tạo mới mà không có
+// code do admin cung cấp. Sequence lấy từ Counter (atomic $inc) để đảm bảo
+// không trùng khi có nhiều request tạo tài khoản đồng thời. Tiền tố "FO4"
+// là cố định — không phụ thuộc vào danh mục cha/con hay bất kỳ điều gì
+// khác, chỉ cần đánh số tăng dần.
+gameAccountSchema.pre('save', async function (next) {
+  try {
+    if (this.isNew && !this.code) {
+      const counter = await Counter.findByIdAndUpdate(
+        'accountCode',
+        { $inc: { seq: 1 } },
+        { upsert: true, new: true }
+      );
+
+      this.code = `TÀI KHOẢN FO4 #${counter.seq}`;
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
 });
 
 export default mongoose.model('GameAccount', gameAccountSchema);

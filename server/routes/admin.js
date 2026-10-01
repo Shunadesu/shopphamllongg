@@ -394,6 +394,25 @@ router.post('/accounts', adminAuth, async (req, res) => {
       originalPrice: finalOriginalPrice,
       adminDiscountPercent: finalDiscountPercent
     };
+
+    // Nếu admin không cung cấp code, để cho pre-save hook tự sinh
+    // mã cố định "TÀI KHOẢN {categoryName} #{seq}". Nếu admin cung cấp
+    // code rỗng chuỗi thì xóa trường để hook xử lý.
+    if (typeof restData.code === 'string' && restData.code.trim() !== '') {
+      accountData.code = restData.code.trim();
+    } else {
+      delete accountData.code;
+    }
+
+    // Chuẩn hóa: nếu admin không nhập phone/email/cccd (rỗng hoặc
+    // toàn khoảng trắng) thì lưu "Trắng" để hiển thị rõ ràng trên admin.
+    for (const field of ['phone', 'email', 'cccd']) {
+      const v = accountData[field];
+      if (v === undefined || v === null || String(v).trim() === '') {
+        accountData[field] = 'Trắng';
+      }
+    }
+
     delete accountData.category;
 
     const account = new GameAccount(accountData);

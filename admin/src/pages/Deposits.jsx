@@ -21,7 +21,6 @@ export default function Deposits() {
       const { data } = await api.get('/admin/deposits/pending-count');
       return data;
     },
-    refetchInterval: 30000, // Auto refresh every 30s
   });
 
   // Bank deposits query
