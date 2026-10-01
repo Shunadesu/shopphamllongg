@@ -453,7 +453,7 @@ const Home = () => {
 
             {/* Show skeleton while loading, real data when loaded, empty state if no categories */}
             {categoriesLoading ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-1.5">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-1.5">
                 {[1, 2, 3, 4].map((i) => (
                   <SkeletonCategoryCard key={i} />
                 ))}

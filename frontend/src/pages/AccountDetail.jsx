@@ -215,6 +215,7 @@ const AccountDetail = ({ onOpenAuth }) => {
                 eager
                 skeletonClassName="rounded-lg"
                 imgStyle={{ cursor: 'zoom-in' }}
+                onClick={() => setLightboxOpen(true)}
               />
 
               {/* Zoom hint */}
@@ -449,49 +450,6 @@ const AccountDetail = ({ onOpenAuth }) => {
           </div>
         )}
 
-        {/* ─── Related Accounts ─── */}
-        {(isRelatedLoading || relatedAccounts.length > 0) && (
-          <div className="mt-4">
-            <h2 className="text-base font-bold text-slate-900 dark:text-white mb-2">
-              Tài khoản bạn có thể thích
-            </h2>
-            {isRelatedLoading ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="card p-2 space-y-2">
-                    <div className="w-full h-24 bg-slate-300 dark:bg-slate-700 rounded animate-pulse" />
-                    <div className="h-3 w-full bg-slate-300 dark:bg-slate-700 rounded animate-pulse" />
-                    <div className="h-3 w-2/3 bg-slate-300 dark:bg-slate-700 rounded animate-pulse" />
-                    <div className="h-3 w-20 bg-slate-300 dark:bg-slate-700 rounded animate-pulse" />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                {relatedAccounts.map((acc) => (
-                  <Link
-                    key={acc._id}
-                    to={`/account/${acc._id}`}
-                    className="card p-2 group"
-                  >
-                    <LazyImage
-                      src={acc.images?.[0]}
-                      alt={acc.title}
-                      className="w-full h-24 object-cover rounded mb-1 group-hover:opacity-80 transition-opacity"
-                      skeletonClassName="rounded"
-                    />
-                    <h3 className="text-slate-900 dark:text-white text-xs font-semibold line-clamp-2 mb-1">
-                      {acc.title}
-                    </h3>
-                    <p className="text-primary font-bold text-xs">
-                      {acc.price.toLocaleString('vi-VN')}đ
-                    </p>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       <style>{`
