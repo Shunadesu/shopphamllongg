@@ -38,7 +38,7 @@ const YouTubeLazyEmbed = ({ embedUrl }) => {
   if (playing) {
     return (
       <iframe
-        src={`${embedUrl}&autoplay=1`}
+        src={`${embedUrl}${embedUrl.includes('?') ? '&' : '?'}autoplay=1`}
         title="YouTube video"
         className="w-full h-full"
         style={{ aspectRatio: '16/9' }}

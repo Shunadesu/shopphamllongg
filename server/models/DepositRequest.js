@@ -83,6 +83,19 @@ const depositRequestSchema = new mongoose.Schema({
   emailProcessedAt: {
     type: Date,
     default: null
+  },
+  // === SePay webhook dedup & audit ===
+  // SePay transaction id (payload.id) — same value across retries & replays, dùng làm dedup key.
+  // sparse: true để các record cũ / card deposit (không qua SePay) không vi phạm unique index.
+  sepayTransactionId: {
+    type: String,
+    default: null,
+    index: { unique: true, sparse: true }
+  },
+  // Raw payload từ SePay để audit / debug.
+  sepayRawPayload: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null
   }
 }, {
   timestamps: true

@@ -337,15 +337,7 @@ const DepositPanel = ({ user }) => {
               Chuyển khoản ngân hàng nội địa — tự động cộng số dư sau 1-3 phút.
             </p>
           </div>
-          <div className="inline-flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-emerald-500/15 to-green-500/15 border border-emerald-500/30 rounded-xl shadow-sm">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
-            </span>
-            <span className="text-xs font-black text-emerald-700 dark:text-emerald-300 uppercase tracking-wide">
-              Nhận 100% giá trị
-            </span>
-          </div>
+         
           {phase !== 'input' && (
             <button
               type="button"

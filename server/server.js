@@ -1,3 +1,13 @@
+// ⚠️ QUAN TRỌNG: `import 'dotenv/config'` phải là import ĐẦU TIÊN trong file.
+// Lý do: ES modules hoist tất cả import lên trên cùng và resolve theo thứ tự source.
+// Nếu để `import express ... import sepayWebhook ... dotenv.config()` ở dưới,
+// thì sepayWebhook.js đã được load (chạy code top-level) TRƯỚC khi dotenv.config() chạy.
+// Hậu quả: process.env.SEPAY_API_KEY rỗng lúc module load, dù .env có ghi đúng.
+// Bug này KHÔNG ảnh hưởng MONGODB_URI vì giá trị đó được đọc bên trong function
+// mongoose.connect() (chạy sau dotenv), nhưng SẼ ảnh hưởng mọi biến đọc ở top-level
+// của module (như SEPAY_API_KEY, ENCRYPTION_KEY, etc.).
+import 'dotenv/config';
+
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
@@ -20,10 +30,9 @@ import socialLinksRoutes from './routes/socialLinks.js';
 import spinRoutes from './routes/spin.js';
 import promotionRoutes from './routes/promotions.js';
 import adminSpinRoutes from './routes/adminSpin.js';
+import sepayWebhook from './routes/sepayWebhook.js';
 import { initTelegramBot } from './services/telegramBot.js';
 import emailChecker from './services/emailChecker.js';
-
-dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -64,8 +73,10 @@ mongoose.connect(process.env.MONGODB_URI)
     console.log('✅ Connected to MongoDB');
     // Initialize Telegram bot after MongoDB connection
     initTelegramBot();
-    // Start email checker for auto deposit approval
-    emailChecker.start();
+    // emailChecker disabled — SePay webhook (/payinwebhook) is now the primary
+    // auto-approval mechanism. emailChecker vẫn được import để dùng trong scripts test
+    // nhưng KHÔNG gọi .start() ở production.
+    // emailChecker.start();
   })
   .catch((err) => console.error('❌ MongoDB connection error:', err));
 
@@ -88,6 +99,10 @@ app.use('/api/admin/social-links', socialLinksRoutes);
 app.use('/api/admin/spin', adminSpinRoutes);
 
 app.use('/', sitemapRoutes);
+
+// SePay webhook — mount ở root (không qua /api) vì URL đã cấu hình là
+// https://phamlongfco.online/payinwebhook
+app.use('/', sepayWebhook);
 
 // TEMPORARY FIX ENDPOINT - xóa sau khi fix xong
 // Xóa users có username/email không hợp lệ và rebuild indexes
