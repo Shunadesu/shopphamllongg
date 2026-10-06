@@ -175,8 +175,8 @@ const AuthDrawer = ({ isOpen, onClose, initialView = 'login' }) => {
                             message: 'Tên đăng nhập phải có ít nhất 3 ký tự'
                           },
                           pattern: {
-                            value: /^[a-zA-Z0-9_]+$/,
-                            message: 'Chỉ chứa chữ cái, số và dấu gạch dưới'
+                            value: /^[a-zA-Z0-9]+$/,
+                            message: 'Chỉ chứa chữ cái không dấu và số'
                           }
                         })}
                         className="input-field pl-10"
@@ -267,8 +267,8 @@ const AuthDrawer = ({ isOpen, onClose, initialView = 'login' }) => {
                             message: 'Tên đăng nhập tối đa 20 ký tự'
                           },
                           pattern: {
-                            value: /^[a-zA-Z0-9_]+$/,
-                            message: 'Chỉ chứa chữ cái, số và dấu gạch dưới'
+                            value: /^[a-zA-Z0-9]+$/,
+                            message: 'Chỉ chứa chữ cái không dấu và số'
                           }
                         })}
                         className="input-field pl-10"

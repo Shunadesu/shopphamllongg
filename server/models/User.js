@@ -10,7 +10,7 @@ const userSchema = new mongoose.Schema({
     trim: true,
     minlength: 3,
     maxlength: 20,
-    match: [/^[a-z0-9_]+$/, 'Username chỉ chứa chữ thường, số và dấu gạch dưới']
+    match: [/^[a-z0-9]+$/, 'Username chỉ chứa chữ thường và số']
   },
   password: {
     type: String,

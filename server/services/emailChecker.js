@@ -36,25 +36,15 @@ class EmailChecker {
 
   async checkAndSchedule() {
     const hasPending = await this.hasActivePendingDeposits();
-    const pendingCount = await DepositRequest.countDocuments({ 
+    const pendingCount = await DepositRequest.countDocuments({
       status: 'pending',
       depositMethod: 'bank'
     });
 
-    console.log(`📊 Pending bank deposits: ${pendingCount}`);
-
     if (hasPending && !this.isEnabled) {
-      // Có pending deposits và checker đang tắt → bật lên
-      console.log('✅ Active deposits found - Email checker enabled');
       this.enable();
     } else if (!hasPending && this.isEnabled) {
-      // Không còn pending và checker đang bật → tắt đi
-      console.log('⏸️  No active deposits - Email checker paused');
       this.disable();
-    } else if (hasPending && this.isEnabled) {
-      console.log('🔄 Email checker already running');
-    } else {
-      console.log('⏸️  Email checker paused - waiting for deposits');
     }
   }
 
@@ -143,8 +133,6 @@ class EmailChecker {
       status: 'pending',
       depositMethod: 'bank'
     });
-    console.log(`📬 Checking emails... (${pendingCount} pending deposit${pendingCount !== 1 ? 's' : ''})`);
-    
     return new Promise((resolve) => {
       this.isChecking = true;
       this.imap = this.createImapConnection();
@@ -179,8 +167,6 @@ class EmailChecker {
               this.isChecking = false;
               return resolve();
             }
-
-            console.log(`📬 Found ${results.length} unread email(s)`);
 
             const fetch = this.imap.fetch(results, { bodies: '' });
             const emailPromises = [];
@@ -224,7 +210,6 @@ class EmailChecker {
       });
 
       this.imap.once('error', (err) => {
-        console.error('❌ IMAP error:', err.message);
         this.isChecking = false;
         resolve();
       });

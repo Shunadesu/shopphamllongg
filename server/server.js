@@ -14,6 +14,7 @@ import cors from 'cors';
 import mongoose from 'mongoose';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import DepositRequest from './models/DepositRequest.js';
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -69,7 +70,7 @@ app.use('/api', (req, res, next) => {
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI)
-  .then(() => {
+  .then(async () => {
     console.log('✅ Connected to MongoDB');
     // Initialize Telegram bot after MongoDB connection
     initTelegramBot();
@@ -77,6 +78,47 @@ mongoose.connect(process.env.MONGODB_URI)
     // auto-approval mechanism. emailChecker vẫn được import để dùng trong scripts test
     // nhưng KHÔNG gọi .start() ở production.
     // emailChecker.start();
+
+    // === Auto-fix: chuẩn hoá index + data cũ cho `sepayTransactionId` ===
+    // Bug cũ: model khai báo `default: null` + `sparse: true`. Vì default = null,
+    // MỌI document đều có field `sepayTransactionId: null`, khiến sparse không có
+    // tác dụng → 2 deposits đầu tiên đều có null → E11000 duplicate key.
+    // Fix: model dùng `partialFilterExpression` (chỉ enforce unique khi field là
+    // string thực sự). Đoạn dưới drop index cũ + unset field null + sync lại.
+    // Idempotent: chạy nhiều lần đều an toàn.
+    try {
+      const coll = mongoose.connection.db.collection('depositrequests');
+      const oldIndex = await coll.indexes().catch(() => []);
+      const hasOldIdx = oldIndex.some((i) => i.name === 'sepayTransactionId_1' && i.partialFilterExpression == null);
+
+      const nullCount = await coll.countDocuments({ sepayTransactionId: null });
+      let unsetCount = 0;
+      if (nullCount > 0) {
+        const r = await coll.updateMany(
+          { sepayTransactionId: null },
+          { $unset: { sepayTransactionId: '' } }
+        );
+        unsetCount = r.modifiedCount || 0;
+      }
+
+      if (hasOldIdx) {
+        try {
+          await coll.dropIndex('sepayTransactionId_1');
+          console.log('🔧 [sepayIndexFix] Dropped old sepayTransactionId_1 (sparse) index');
+        } catch (e) {
+          console.warn('⚠️ [sepayIndexFix] dropIndex failed:', e.message);
+        }
+      }
+
+      // Sync lại indexes theo schema hiện tại (Mongoose sẽ tạo partialFilterExpression index)
+      await DepositRequest.syncIndexes();
+      console.log(
+        `🔧 [sepayIndexFix] Done — hadOldIndex=${hasOldIdx}, ` +
+        `nullDocs=${nullCount}, unset=${unsetCount}, indexes synced.`
+      );
+    } catch (fixErr) {
+      console.error('⚠️ [sepayIndexFix] Failed (non-fatal, server continues):', fixErr.message);
+    }
   })
   .catch((err) => console.error('❌ MongoDB connection error:', err));
 

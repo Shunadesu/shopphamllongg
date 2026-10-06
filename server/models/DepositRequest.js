@@ -86,11 +86,22 @@ const depositRequestSchema = new mongoose.Schema({
   },
   // === SePay webhook dedup & audit ===
   // SePay transaction id (payload.id) — same value across retries & replays, dùng làm dedup key.
-  // sparse: true để các record cũ / card deposit (không qua SePay) không vi phạm unique index.
+  //
+  // Lưu ý: KHÔNG đặt `default: null` ở đây. Nếu có `default: null`, MỌI document mới
+  // sẽ có field `sepayTransactionId: null`, khiến `sparse: true` không có tác dụng
+  // (sparse chỉ skip docs không có field, không skip field = null). Hậu quả: 2 yêu cầu
+  // nạp đầu tiên đều có `sepayTransactionId: null` → E11000 duplicate key.
+  //
+  // Thay vào đó dùng `partialFilterExpression` chỉ enforce unique khi field là string
+  // thực sự (bỏ qua cả missing lẫn null) — tương thích ngược với data cũ, không cần
+  // migration.
   sepayTransactionId: {
     type: String,
-    default: null,
-    index: { unique: true, sparse: true }
+    // Không default → field chỉ xuất hiện khi webhook SePay gắn explicit.
+    index: {
+      unique: true,
+      partialFilterExpression: { sepayTransactionId: { $type: 'string' } },
+    },
   },
   // Raw payload từ SePay để audit / debug.
   sepayRawPayload: {

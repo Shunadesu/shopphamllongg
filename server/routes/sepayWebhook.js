@@ -62,12 +62,19 @@ router.get('/payinwebhook/debug', (req, res) => {
 
 // === Helper: parse transferNote "username amount" ===
 // Ví dụ: "namp123 50000" → { username: "namp123", amount: 50000 }
+// Hoặc với prefix VietQR/SePay tự thêm: "QR - testa12345 10000" → vẫn parse đúng.
 function parseTransferContent(content) {
   if (!content || typeof content !== 'string') return null;
 
-  // Match: tên user (chữ thường/số/_/chữ hoa) + khoảng trắng + số tiền
-  // Username theo schema: ^[a-z0-9_]+$ nhưng trong content có thể viết hoa
-  const match = content.trim().match(/^([A-Za-z0-9_]+)\s+(\d+)$/);
+  // Match: tên user (chữ thường/số/_/chữ hoa) + khoảng trắng + số tiền ở CUỐI content.
+  // Lý do bỏ anchor `^`: SePay / VietQR generator thường prepend prefix phía trước
+  // (vd: "QR - ", "NAP ") vào content thực nhận từ ngân hàng, dù `transferNote` trong
+  // DB chỉ có "username amount". Anchor `$` ở cuối vẫn bắt buộc amount là số cuối cùng
+  // để tránh match nhầm số ở giữa content (vd: timestamp, mã GD).
+  //
+  // Regex này không có `^`, nên greedy match sẽ tự chọn username dài nhất trước
+  // amount cuối cùng — tránh nhầm với prefix uppercase như "QR", "NAP"...
+  const match = content.trim().match(/([A-Za-z0-9_]+)\s+(\d+)\s*$/);
   if (!match) return null;
 
   return {
@@ -79,9 +86,20 @@ function parseTransferContent(content) {
 // === POST /payinwebhook ===
 router.post('/payinwebhook', verifyApiKey, async (req, res) => {
   const payload = req.body || {};
+  const sepayId = payload.id;
+
+  // === Entry log — xác nhận webhook đã nhận request ===
+  console.log(
+    `[SePay Webhook] ➜ POST /payinwebhook from ${req.ip}` +
+    ` | id=${sepayId ?? 'N/A'}` +
+    ` | transferType=${payload.transferType ?? 'N/A'}` +
+    ` | amount=${typeof payload.transferAmount === 'number' ? payload.transferAmount.toLocaleString('vi-VN') + 'đ' : 'N/A'}` +
+    ` | gateway=${payload.gateway ?? 'N/A'}` +
+    ` | accountNumber=${payload.accountNumber ?? 'N/A'}` +
+    ` | content="${payload.content ?? ''}"`
+  );
 
   // === Validate cơ bản ===
-  const sepayId = payload.id;
   if (sepayId === undefined || sepayId === null) {
     return res.status(400).json({ success: false, message: 'Missing id' });
   }
@@ -164,6 +182,16 @@ router.post('/payinwebhook', verifyApiKey, async (req, res) => {
       note: `Received: ${payload.transferAmount.toLocaleString('vi-VN')}đ (gateway: ${payload.gateway})`,
     });
 
+    // ✅ Webhook callback xử lý thành công — log tổng kết ở cấp handler
+    const depositShortId = candidate._id.toString().slice(-8).toUpperCase();
+    console.log(
+      `[SePay Webhook] ✅ Webhook callback processed successfully — ` +
+      `SePay id=${sepayId} → deposit #${depositShortId} approved, ` +
+      `user=${user.username}, +${candidate.amount.toLocaleString('vi-VN')}đ → balance=${user.balance.toLocaleString()}đ, ` +
+      `+${spinsAwarded} spins (total=${user.spins}), ` +
+      `totalDeposited=${user.totalDeposited.toLocaleString()}đ`
+    );
+
     // Trả Telegram notification cho admin (best-effort, không block)
     try {
       const { sendDepositNotification } = await import('../services/telegramBot.js');
@@ -226,6 +254,11 @@ async function sendApprovedDepositNotification(deposit, sepayPayload, user, spin
       text: message,
       parse_mode: 'HTML',
     });
+
+    console.log(
+      `[SePay Webhook] ✅ Telegram admin notification sent for deposit #${deposit._id.toString().slice(-8).toUpperCase()} ` +
+      `(user=${user.username}, +${user.balance.toLocaleString('vi-VN')}đ)`
+    );
   } catch (err) {
     console.error('[SePay Webhook] sendApprovedDepositNotification error:', err.message);
   }

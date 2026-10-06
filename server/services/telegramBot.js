@@ -10,6 +10,18 @@ let bot = null;
 let adminChatId = null;
 
 /**
+ * Escape HTML để an toàn khi nhét vào caption/text Telegram
+ * (tránh lỗi parse khi username/title chứa ký tự đặc biệt như &, <, >)
+ */
+function escapeHtml(value) {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/**
  * Khởi tạo Telegram bot
  */
 export async function initTelegramBot() {
@@ -300,6 +312,137 @@ async function handleCallbackQuery(ctx) {
       text: `❌ Lỗi: ${error.message}`,
       show_alert: true
     });
+  }
+}
+
+/**
+ * Gửi thông báo đơn hàng mua thành công đến admin Telegram.
+ * Mỗi account trong đơn gửi 1 ảnh (ảnh đầu tiên) kèm caption chứa mã tài khoản.
+ * Nếu account không có ảnh hoặc Telegram không fetch được ảnh → fallback text.
+ *
+ * @param {Object} params
+ * @param {Object} params.order - Order doc (đã populate items.accountId + userId)
+ *                                hoặc plain object từ .lean()
+ * @param {string} [params.publicBaseUrl] - Base URL build URL tuyệt đối cho ảnh
+ *                                          (mặc định lấy từ PUBLIC_BASE_URL env,
+ *                                          fallback https://phamlongfco.online)
+ */
+export async function sendPurchaseNotification({ order, publicBaseUrl } = {}) {
+  if (!bot || !adminChatId) return;
+  if (!order || !Array.isArray(order.items) || order.items.length === 0) return;
+
+  const baseUrl = publicBaseUrl
+    || process.env.PUBLIC_BASE_URL
+    || 'https://phamlongfco.online';
+
+  try {
+    // === Resolve buyer info ===
+    let userInfo = null;
+    const rawUser = order.userId;
+    if (rawUser && typeof rawUser === 'object' && (rawUser.username || rawUser.fullName)) {
+      // đã populate
+      userInfo = rawUser;
+    } else if (rawUser) {
+      // chưa populate → fetch
+      try {
+        userInfo = await User.findById(rawUser)
+          .select('username fullName email phone')
+          .lean();
+      } catch (e) {
+        console.warn('[Telegram] Cannot load buyer info:', e.message);
+      }
+    }
+
+    const buyerLine = userInfo
+      ? `👤 Người mua: <b>${escapeHtml(userInfo.username)}</b>` +
+        (userInfo.fullName ? ` <i>(${escapeHtml(userInfo.fullName)})</i>` : '')
+      : '👤 Người mua: <i>không rõ</i>';
+
+    const orderLine = `🧾 Mã đơn: <code>${escapeHtml(order.orderNumber)}</code>`;
+    const totalLine = `💵 Tổng tiền: <b>${(order.totalAmount || 0).toLocaleString('vi-VN')}đ</b>`;
+    const timeLine = `⏰ ${new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`;
+
+    // === Gửi header trước ===
+    const header = [
+      '🛒 <b>ĐƠN HÀNG MỚI</b>',
+      '━━━━━━━━━━━━━━━━━━',
+      orderLine,
+      buyerLine,
+      totalLine,
+      `📦 Số tài khoản: <b>${order.items.length}</b>`,
+      timeLine,
+    ].join('\n');
+
+    await bot.api.sendMessage({
+      chat_id: adminChatId,
+      text: header,
+      parse_mode: 'HTML',
+    });
+
+    // === Mỗi item: gửi 1 photo + caption ===
+    const totalItems = order.items.length;
+    for (let i = 0; i < totalItems; i++) {
+      const item = order.items[i];
+      const acc = item.accountId;
+      if (!acc) continue;
+
+      const codeLine = `🔖 Mã tài khoản: <b>${escapeHtml(acc.code || '(chưa có mã)')}</b>`;
+      const titleLine = acc.title ? `📦 Tên: ${escapeHtml(acc.title)}` : '';
+      const priceLine = `💰 Giá: <b>${(item.price || 0).toLocaleString('vi-VN')}đ</b>`;
+      const idxLine = totalItems > 1 ? `\n<i>(${i + 1}/${totalItems})</i>` : '';
+
+      const caption = [codeLine, titleLine, priceLine, idxLine]
+        .filter(Boolean)
+        .join('\n');
+
+      // Telegram caption giới hạn 1024 chars — cắt nếu vượt
+      const finalCaption = caption.length > 1024 ? caption.slice(0, 1020) + '...' : caption;
+
+      const firstImage = Array.isArray(acc.images) && acc.images.length > 0
+        ? acc.images[0]
+        : null;
+
+      let sentAsPhoto = false;
+
+      if (firstImage) {
+        const photoUrl = firstImage.startsWith('http')
+          ? firstImage
+          : `${baseUrl.replace(/\/+$/, '')}${firstImage.startsWith('/') ? '' : '/'}${firstImage}`;
+
+        try {
+          await bot.api.sendPhoto({
+            chat_id: adminChatId,
+            photo: photoUrl,
+            caption: finalCaption,
+            parse_mode: 'HTML',
+          });
+          sentAsPhoto = true;
+        } catch (photoErr) {
+          // Telegram không fetch được ảnh → fallback text
+          console.warn(
+            `[Telegram] sendPhoto failed for order ${order.orderNumber} item ${i}:`,
+            photoErr.message
+          );
+        }
+      }
+
+      if (!sentAsPhoto) {
+        await bot.api.sendMessage({
+          chat_id: adminChatId,
+          text: finalCaption,
+          parse_mode: 'HTML',
+        });
+      }
+
+      // Tránh flood limit (30 msg/s nhưng an toàn với 50ms gap)
+      if (i < totalItems - 1) {
+        await new Promise((r) => setTimeout(r, 50));
+      }
+    }
+
+    console.log(`✅ Telegram purchase notification sent for order ${order.orderNumber}`);
+  } catch (error) {
+    console.error('❌ Failed to send Telegram purchase notification:', error.message);
   }
 }
 

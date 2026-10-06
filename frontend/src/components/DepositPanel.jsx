@@ -128,16 +128,32 @@ const DepositPanel = ({ user }) => {
       try {
         const updated = await useDepositStore.getState().checkOneRequest(depositInfo._id);
         if (updated?.status === 'approved') {
+          const approvedAmount = updated.amount || numericAmount;
+          // ✅ Chuyển tiền thành công — log + toast để user thấy ngay ở console
+          console.log(
+            `[DepositPanel] ✅ Webhook callback nhận về — chuyển tiền thành công! ` +
+            `deposit #${updated._id?.slice(-8).toUpperCase()}, ` +
+            `user="${currentUsername}", ` +
+            `amount=${approvedAmount.toLocaleString('vi-VN')}đ, ` +
+            `spins=${updated.userSpins ?? 'N/A'}`
+          );
+          toast.success(`🎉 Chuyển tiền thành công +${approvedAmount.toLocaleString('vi-VN')}đ!`);
           try { await refreshProfile(); } catch {}
           // Kích hoạt confetti + popup ngay — KHÔNG cần chờ phase
-          triggerSuccessCelebration(updated.amount || numericAmount);
+          triggerSuccessCelebration(approvedAmount);
           setPhase('success');
         } else if (updated?.status === 'rejected') {
+          console.warn(
+            `[DepositPanel] ⚠️ Yêu cầu nạp bị từ chối — ` +
+            `deposit #${updated._id?.slice(-8).toUpperCase()}, ` +
+            `adminNote="${updated.adminNote || ''}"`
+          );
+          toast.error('Yêu cầu nạp đã bị từ chối');
           setDepositInfo((prev) => ({ ...prev, ...updated }));
           navigate('/');
         }
-      } catch {
-        // im lặng
+      } catch (pollErr) {
+        console.error('[DepositPanel] ❌ Polling error:', pollErr?.message || pollErr);
       }
     };
 
@@ -194,7 +210,18 @@ const DepositPanel = ({ user }) => {
     }
     setSubmitting(true);
     try {
+      console.log(
+        `[DepositPanel] ➜ Tạo yêu cầu nạp ${numericAmount.toLocaleString('vi-VN')}đ ` +
+        `cho user "${currentUsername}"`
+      );
       const res = await api.post('/deposits/random-request', { amount: numericAmount });
+      const depositShortId = res.data.deposit._id.slice(-8).toUpperCase();
+      console.log(
+        `[DepositPanel] ✅ Đã tạo yêu cầu nạp #${depositShortId} — ` +
+        `chờ chuyển khoản ${numericAmount.toLocaleString('vi-VN')}đ đến ` +
+        `${res.data.bank.bankName} (STK ${res.data.bank.accountNumber}), ` +
+        `transferNote="${res.data.bank.transferNote}"`
+      );
       setBankInfo(res.data.bank);
       setDepositInfo(res.data.deposit);
       setPhase('show-info');
@@ -202,6 +229,10 @@ const DepositPanel = ({ user }) => {
       hasShownCelebration.current = false;
       try { await useDepositStore.getState().fetchMyRequests(true); } catch {}
     } catch (error) {
+      console.error(
+        '[DepositPanel] ❌ Tạo yêu cầu nạp thất bại:',
+        error?.response?.data?.message || error?.message || error
+      );
       toast.error(error.response?.data?.message || 'Không thể tạo yêu cầu nạp tiền');
     } finally {
       setSubmitting(false);

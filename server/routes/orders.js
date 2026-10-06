@@ -7,6 +7,7 @@ import User from '../models/User.js';
 import { auth } from '../middleware/auth.js';
 import { decrypt } from '../utils/encryption.js';
 import { purchaseLimiter } from '../middleware/rateLimiter.js';
+import { sendPurchaseNotification } from '../services/telegramBot.js';
 
 const router = express.Router();
 
@@ -76,6 +77,22 @@ router.post('/buy-now', auth, purchaseLimiter, async (req, res) => {
 
     // Commit transaction
     await session.commitTransaction();
+
+    // === Telegram: thông báo đơn hàng mới (fire-and-forget, không block response) ===
+    try {
+      const populatedOrder = await Order.findById(order._id)
+        .populate('userId', 'username fullName')
+        .populate({
+          path: 'items.accountId',
+          populate: { path: 'categoryId', select: 'name' }
+        })
+        .lean();
+      sendPurchaseNotification({ order: populatedOrder }).catch((err) =>
+        console.error('Telegram purchase notify error:', err.message)
+      );
+    } catch (populateErr) {
+      console.error('Telegram purchase prep error:', populateErr.message);
+    }
 
     res.json({
       message: 'Mua tài khoản thành công',
@@ -268,6 +285,17 @@ router.post('/checkout', auth, purchaseLimiter, async (req, res) => {
       path: 'items.accountId',
       populate: { path: 'categoryId' }
     });
+
+    // === Telegram: thông báo đơn hàng mới (fire-and-forget) ===
+    // order đã populated items.accountId; populate thêm user để hiện tên người mua
+    try {
+      await order.populate('userId', 'username fullName');
+      sendPurchaseNotification({ order: order.toObject() }).catch((err) =>
+        console.error('Telegram purchase notify error:', err.message)
+      );
+    } catch (populateErr) {
+      console.error('Telegram purchase prep error:', populateErr.message);
+    }
 
     res.json({ 
       message: 'Thanh toán thành công!',

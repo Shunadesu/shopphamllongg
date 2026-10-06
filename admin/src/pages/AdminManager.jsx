@@ -155,7 +155,7 @@ export default function AdminManager() {
 
       {/* Create Admin Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+        <div className="!mt-0 fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
           <div className="card max-w-md w-full">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
@@ -239,7 +239,7 @@ export default function AdminManager() {
 
       {/* Delete Confirm Modal */}
       {deleteTarget && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+        <div className="!mt-0 fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
           <div className="card max-w-sm w-full">
             <h2 className="text-xl font-bold text-red-400 mb-4">Xác nhận xóa</h2>
             <p className="text-slate-300 mb-6">

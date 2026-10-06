@@ -6,32 +6,54 @@ import SiteSetting from '../models/SiteSetting.js';
 import { auth } from '../middleware/auth.js';
 
 // Map bank name (as stored in DB) → VietQR.io bank code
+// Source (chính thức): https://api.vietqr.io/v2/banks
+// ⚠️ PHẢI đồng bộ với frontend/src/utils/bankUtils.js và admin/src/utils/bankUtils.js
 const VIETQR_BANK_CODE_MAP = {
   'ACB': 'ACB', 'Vietcombank': 'VCB', 'VIB': 'VIB',
   'VIB - Ngân hàng Quốc tế': 'VIB', 'VietinBank': 'ICB', 'ICB': 'ICB',
-  'BIDV': 'BID', 'BID': 'BID', 'TPBank': 'TPB', 'TPB': 'TPB',
+  // BIDV — fix từ 'BID' → 'BIDV' (BID trả về "invalid acqId")
+  'BIDV': 'BIDV', 'BID': 'BIDV',
+  'TPBank': 'TPB', 'TPB': 'TPB',
   'MB Bank': 'MB', 'MB': 'MB', 'VPBank': 'VPB', 'VPB': 'VPB',
-  'Techcombank': 'TCB', 'TCB': 'TCB', 'CTG': 'CTG',
-  'CTGC (Viet Capital Bank)': 'CTG', 'Eximbank': 'EIB', 'EIB': 'EIB',
+  'Techcombank': 'TCB', 'TCB': 'TCB',
+  // CTGC / VietCapitalBank — fix từ 'CTG' → 'VCCB'
+  'CTGC (Viet Capital Bank)': 'VCCB', 'VietCapitalBank': 'VCCB',
+  'CTG': 'VCCB', 'VietCredit': 'VCCB',
+  'Eximbank': 'EIB', 'EIB': 'EIB',
   'HDBank': 'HDB', 'HDB': 'HDB', 'MSB': 'MSB',
   'MSB - Ngân hàng Hàng Hải': 'MSB', 'OCB': 'OCB', 'SHB': 'SHB',
   'Sacombank': 'STB', 'STB': 'STB', 'ABBANK': 'ABB', 'ABB': 'ABB',
-  'Kienlongbank': 'KLB', 'KLB': 'KLB', 'LPB': 'LPB',
-  'LienVietPostBank': 'LPB', 'NamABank': 'NAB', 'NAB': 'NAB',
-  'PGBank': 'PGB', 'PGB': 'PGB', 'SCB': 'SCB', 'SeABank': 'SEA',
-  'SEA': 'SEA', 'Saigonbank': 'SSB', 'SSB': 'SSB',
-  'VietABank': 'VAB', 'VAB': 'VAB', 'VietCredit': 'VCCB',
-  'VCCB': 'VCCB', 'WOORI': 'WOORI', 'Woori Bank': 'WOORI',
+  'Kienlongbank': 'KLB', 'KLB': 'KLB',
+  // LPBank — fix từ 'LPB' → 'LPBank'
+  'LienVietPostBank': 'LPBank', 'LPBank': 'LPBank', 'LPB': 'LPBank',
+  'NamABank': 'NAB', 'NAB': 'NAB',
+  'PGBank': 'PGB', 'PGB': 'PGB', 'SCB': 'SCB',
+  // SeABank — fix từ 'SEA' → 'SEAB'
+  'SeABank': 'SEAB', 'SEAB': 'SEAB', 'SEA': 'SEAB',
+  // Saigonbank — fix từ 'SSB' → 'SGICB'
+  'Saigonbank': 'SGICB', 'SGICB': 'SGICB', 'SSB': 'SGICB',
+  'VietABank': 'VAB', 'VAB': 'VAB',
+  'VCCB': 'VCCB',
+  // Woori — cả 'WOORI' và 'WVN' đều hợp lệ, dùng 'WVN' (mã chính thức)
+  'Woori Bank': 'WVN', 'Woori': 'WVN', 'WOORI': 'WVN', 'WVN': 'WVN',
   'UOB': 'UOB', 'UOB Singapore': 'UOB',
+  // VRB = Liên doanh Việt-Nga
+  'VietinBank (VRB)': 'VRB', 'VRB': 'VRB',
 };
 
 const getVietqrBankCode = (bankName) => {
   if (!bankName) return 'ACB';
-  return VIETQR_BANK_CODE_MAP[bankName] || 'ACB';
+  // Exact match first
+  if (VIETQR_BANK_CODE_MAP[bankName]) return VIETQR_BANK_CODE_MAP[bankName];
+  // Case-insensitive fallback
+  const lower = String(bankName).toLowerCase();
+  for (const [key, code] of Object.entries(VIETQR_BANK_CODE_MAP)) {
+    if (key.toLowerCase() === lower) return code;
+  }
+  return 'ACB';
 };
 import { depositLimiter } from '../middleware/rateLimiter.js';
 import { sendDepositNotification } from '../services/telegramBot.js';
-import emailChecker from '../services/emailChecker.js';
 
 // === Card exchange rates ===
 // Default fallback nếu admin chưa cấu hình trong SiteSetting.
@@ -122,14 +144,6 @@ router.post('/request', auth, depositLimiter, async (req, res) => {
       console.error('Telegram notification error:', telegramError);
       // Don't throw error, allow request to continue
     }
-
-    // Trigger email checker to resume if paused
-    console.log('🔔 New deposit created - triggering email checker...');
-    emailChecker.checkAndSchedule().then(() => {
-      console.log('✅ Email checker schedule completed');
-    }).catch(err => {
-      console.error('❌ Email checker schedule error:', err);
-    });
 
     res.status(201).json({
       message: 'Yêu cầu nạp tiền đã được gửi. Vui lòng chuyển khoản và chờ admin duyệt.',
@@ -270,6 +284,16 @@ router.post('/random-request', auth, async (req, res) => {
 
     await depositRequest.save();
 
+    // ✅ Log tạo yêu cầu thành công — để debug / audit / đối chiếu với webhook
+    const vietqrCode = getVietqrBankCode(selectedBank.bankName);
+    console.log(
+      `[Deposits] ✅ Created deposit request #${depositRequest._id.toString().slice(-8).toUpperCase()} ` +
+      `for user=${user?.username || 'N/A'} — ${amount.toLocaleString('vi-VN')}đ → ` +
+      `${selectedBank.bankName} (STK ${selectedBank.accountNumber}), ` +
+      `transferNote="${transferNote}", useVietQr=${selectedBank.useVietQr}, ` +
+      `vietqrCode="${vietqrCode}", status=pending`
+    );
+
     // Send Telegram notification
     try {
       await sendDepositNotification(depositRequest);
@@ -277,14 +301,6 @@ router.post('/random-request', auth, async (req, res) => {
       console.error('Telegram notification error:', telegramError);
       // Don't throw error, allow request to continue
     }
-
-    // Trigger email checker to resume if paused
-    console.log('🔔 New deposit created - triggering email checker...');
-    emailChecker.checkAndSchedule().then(() => {
-      console.log('✅ Email checker schedule completed');
-    }).catch(err => {
-      console.error('❌ Email checker schedule error:', err);
-    });
 
     res.status(201).json({
       message: 'Đã tạo yêu cầu nạp tiền',

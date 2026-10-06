@@ -13,17 +13,18 @@ import 'swiper/css';
 import 'swiper/css/pagination';
 
 // Danh sách ngân hàng phổ biến tại Việt Nam
+// ⚠️ Code PHẢI khớp với VietQR.io (https://api.vietqr.io/v2/banks) để preview QR render đúng
 const VIETNAMESE_BANKS = [
   { code: 'VCB', name: 'Vietcombank' },
   { code: 'VIB', name: 'VIB - Ngân hàng Quốc tế' },
   { code: 'ICB', name: 'VietinBank' },
-  { code: 'BID', name: 'BIDV' },
+  { code: 'BIDV', name: 'BIDV' },
   { code: 'ACB', name: 'ACB' },
   { code: 'TPB', name: 'TPBank' },
   { code: 'MB', name: 'MB Bank' },
   { code: 'VPB', name: 'VPBank' },
   { code: 'TCB', name: 'Techcombank' },
-  { code: 'CTG', name: 'CTGC (Viet Capital Bank)' },
+  { code: 'VCCB', name: 'CTGC (Viet Capital Bank)' },
   { code: 'EIB', name: 'Eximbank' },
   { code: 'HDB', name: 'HDBank' },
   { code: 'MSB', name: 'MSB - Ngân hàng Hàng Hải' },
@@ -32,16 +33,15 @@ const VIETNAMESE_BANKS = [
   { code: 'STB', name: 'Sacombank' },
   { code: 'ABB', name: 'ABBANK' },
   { code: 'KLB', name: 'Kienlongbank' },
-  { code: 'LPB', name: 'LienVietPostBank' },
+  { code: 'LPBank', name: 'LienVietPostBank' },
   { code: 'NAB', name: 'NamABank' },
   { code: 'PGB', name: 'PGBank' },
   { code: 'SCB', name: 'SCB' },
-  { code: 'SEA', name: 'SeABank' },
-  { code: 'SSB', name: 'Saigonbank' },
+  { code: 'SEAB', name: 'SeABank' },
+  { code: 'SGICB', name: 'Saigonbank' },
   { code: 'VAB', name: 'VietABank' },
-  { code: 'VCCB', name: 'VietCredit' },
   { code: 'VRB', name: 'VietinBank (VRB)' },
-  { code: 'WOORI', name: 'Woori Bank' },
+  { code: 'WVN', name: 'Woori Bank' },
   { code: 'UOB', name: 'UOB Singapore' },
   { code: 'OTHER', name: 'Khác (tự nhập)' },
 ];

@@ -875,7 +875,7 @@ router.get('/bank-accounts', adminAuth, async (req, res) => {
 // Create bank account
 router.post('/bank-accounts', adminAuth, async (req, res) => {
   try {
-    const { bankName, accountNumber, qrCodeImage, isActive, order } = req.body;
+    const { bankName, accountNumber, qrCodeImage, isActive, order, useVietQr, vietqrTemplate } = req.body;
     const payload = {
       bankName,
       accountNumber,
@@ -883,6 +883,8 @@ router.post('/bank-accounts', adminAuth, async (req, res) => {
       qrCodeImage: qrCodeImage || '',
       isActive: isActive !== undefined ? isActive : true,
       order: order || 0,
+      useVietQr: useVietQr !== undefined ? !!useVietQr : false,
+      vietqrTemplate: vietqrTemplate || 'compact2',
       // identifier: định danh duy nhất = bankName + accountNumber (không có khoảng trắng)
       identifier: `${bankName?.toLowerCase().replace(/\s+/g, '')}_${accountNumber}`,
     };

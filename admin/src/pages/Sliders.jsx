@@ -524,7 +524,7 @@ export default function Sliders() {
 
       {/* ===== MODAL: Thêm/Sửa ẢNH SWIPER (cột trái) ===== */}
       {leftModalOpen && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+        <div className="!mt-0 fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
           <div className="card max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-slate-100">
@@ -609,7 +609,7 @@ export default function Sliders() {
 
       {/* ===== MODAL: Thêm/Sửa BANNER PHẢI ===== */}
       {rightModalOpen && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+        <div className="!mt-0 fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
           <div className="card max-w-xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-slate-100">
