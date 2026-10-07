@@ -33,7 +33,7 @@ import promotionRoutes from './routes/promotions.js';
 import adminSpinRoutes from './routes/adminSpin.js';
 import sepayWebhook from './routes/sepayWebhook.js';
 import { initTelegramBot } from './services/telegramBot.js';
-import emailChecker from './services/emailChecker.js';
+import { startDepositCleanup } from './services/depositCleanup.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -74,10 +74,9 @@ mongoose.connect(process.env.MONGODB_URI)
     console.log('✅ Connected to MongoDB');
     // Initialize Telegram bot after MongoDB connection
     initTelegramBot();
-    // emailChecker disabled — SePay webhook (/payinwebhook) is now the primary
-    // auto-approval mechanism. emailChecker vẫn được import để dùng trong scripts test
-    // nhưng KHÔNG gọi .start() ở production.
-    // emailChecker.start();
+
+    // Start cleanup job — tự động reject deposit pending quá 20p không chuyển khoản
+    startDepositCleanup();
 
     // === Auto-fix: chuẩn hoá index + data cũ cho `sepayTransactionId` ===
     // Bug cũ: model khai báo `default: null` + `sparse: true`. Vì default = null,
