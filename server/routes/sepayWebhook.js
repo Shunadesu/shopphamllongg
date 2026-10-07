@@ -2,6 +2,7 @@ import express from 'express';
 import crypto from 'crypto';
 import mongoose from 'mongoose';
 import DepositRequest from '../models/DepositRequest.js';
+import WebhookLog from '../models/WebhookLog.js';
 import { autoApproveDeposit } from '../utils/depositApproval.js';
 
 const router = express.Router();
@@ -23,6 +24,34 @@ console.log(`[SePay Webhook] CWD=${process.cwd()}`);
 
 // Amount tolerance khi match với deposit pending (giống emailChecker cũ).
 const AMOUNT_TOLERANCE = 1000;
+
+// === Webhook logging helpers ===
+/**
+ * Log webhook entry vào database (non-blocking)
+ * @returns {string|null} Log ID nếu thành công, null nếu fail
+ */
+async function logWebhook(data) {
+  try {
+    const log = new WebhookLog(data);
+    await log.save();
+    return log._id.toString();
+  } catch (err) {
+    console.error('[WebhookLog] Failed to save:', err.message);
+    return null;
+  }
+}
+
+/**
+ * Update webhook log với status cuối cùng (non-blocking)
+ */
+async function updateWebhookLog(logId, updates) {
+  if (!logId) return;
+  try {
+    await WebhookLog.findByIdAndUpdate(logId, updates);
+  } catch (err) {
+    console.error('[WebhookLog] Failed to update:', err.message);
+  }
+}
 
 // === API Key middleware ===
 // Header: "Authorization: Apikey <key>" — so sánh constant-time.
@@ -87,10 +116,11 @@ function parseTransferContent(content) {
 router.post('/payinwebhook', verifyApiKey, async (req, res) => {
   const payload = req.body || {};
   const sepayId = payload.id;
+  const sourceIp = req.ip || req.headers['x-forwarded-for'] || 'unknown';
 
   // === Entry log — xác nhận webhook đã nhận request ===
   console.log(
-    `[SePay Webhook] ➜ POST /payinwebhook from ${req.ip}` +
+    `[SePay Webhook] ➜ POST /payinwebhook from ${sourceIp}` +
     ` | id=${sepayId ?? 'N/A'}` +
     ` | transferType=${payload.transferType ?? 'N/A'}` +
     ` | amount=${typeof payload.transferAmount === 'number' ? payload.transferAmount.toLocaleString('vi-VN') + 'đ' : 'N/A'}` +
@@ -99,17 +129,43 @@ router.post('/payinwebhook', verifyApiKey, async (req, res) => {
     ` | content="${payload.content ?? ''}"`
   );
 
+  // === Log webhook entry vào database ===
+  const logId = await logWebhook({
+    source: 'sepay',
+    rawPayload: payload,
+    sepayTransactionId: String(sepayId),
+    amount: payload.transferAmount || 0,
+    content: payload.content || '',
+    gateway: payload.gateway || '',
+    accountNumber: payload.accountNumber || '',
+    processingStatus: 'processing',
+    sourceIp,
+    receivedAt: new Date()
+  });
+
   // === Validate cơ bản ===
   if (sepayId === undefined || sepayId === null) {
+    await updateWebhookLog(logId, {
+      processingStatus: 'error',
+      processingNote: 'Missing id field in payload'
+    });
     return res.status(400).json({ success: false, message: 'Missing id' });
   }
   if (payload.transferType !== 'in') {
     // Giao dịch ra — bỏ qua, return success để SePay không retry
     console.log(`[SePay Webhook] Ignore transferType=${payload.transferType} (id=${sepayId})`);
+    await updateWebhookLog(logId, {
+      processingStatus: 'ignored',
+      processingNote: `Not incoming transfer (type: ${payload.transferType})`
+    });
     return res.json({ success: true, ignored: 'not_incoming' });
   }
   if (typeof payload.transferAmount !== 'number' || payload.transferAmount <= 0) {
     console.warn(`[SePay Webhook] Invalid transferAmount: ${payload.transferAmount} (id=${sepayId})`);
+    await updateWebhookLog(logId, {
+      processingStatus: 'error',
+      processingNote: `Invalid transferAmount: ${payload.transferAmount}`
+    });
     return res.status(400).json({ success: false, message: 'Invalid transferAmount' });
   }
 
@@ -120,6 +176,11 @@ router.post('/payinwebhook', verifyApiKey, async (req, res) => {
     .lean();
   if (existing) {
     console.log(`[SePay Webhook] Duplicate SePay id ${sepayId} → already on deposit ${existing._id} (${existing.status})`);
+    await updateWebhookLog(logId, {
+      processingStatus: 'duplicate',
+      processingNote: `Already processed for deposit ${existing._id} (${existing.status})`,
+      matchedDepositId: existing._id
+    });
     return res.json({ success: true, duplicate: true });
   }
 
@@ -127,6 +188,10 @@ router.post('/payinwebhook', verifyApiKey, async (req, res) => {
   const parsed = parseTransferContent(payload.content);
   if (!parsed) {
     console.warn(`[SePay Webhook] Cannot parse content: "${payload.content}" (id=${sepayId})`);
+    await updateWebhookLog(logId, {
+      processingStatus: 'ignored',
+      processingNote: `Cannot parse content: "${payload.content}"`
+    });
     return res.json({ success: true, ignored: 'unparseable_content' });
   }
 
@@ -150,12 +215,21 @@ router.post('/payinwebhook', verifyApiKey, async (req, res) => {
       `[SePay Webhook] No matching pending deposit for content="${payload.content}" ` +
       `(SePay id=${sepayId}, gateway=${payload.gateway}, accountNumber=${payload.accountNumber})`
     );
+    await updateWebhookLog(logId, {
+      processingStatus: 'ignored',
+      processingNote: `No matching pending deposit for username="${parsed.username}" amount=${parsed.amount}`
+    });
     return res.json({ success: true, ignored: 'no_match' });
   }
 
   // === Check user còn active không ===
   if (!candidate.userId || !candidate.userId.isActive) {
     console.warn(`[SePay Webhook] Match found but user is inactive/missing (deposit ${candidate._id})`);
+    await updateWebhookLog(logId, {
+      processingStatus: 'ignored',
+      processingNote: `User inactive or missing (deposit: ${candidate._id})`,
+      matchedDepositId: candidate._id
+    });
     return res.json({ success: true, ignored: 'user_inactive' });
   }
 
@@ -167,6 +241,11 @@ router.post('/payinwebhook', verifyApiKey, async (req, res) => {
       `received=${payload.transferAmount.toLocaleString()}đ, diff=${diff}đ ` +
       `(deposit ${candidate._id}, user=${candidate.userId.username})`
     );
+    await updateWebhookLog(logId, {
+      processingStatus: 'ignored',
+      processingNote: `Amount mismatch: expected ${candidate.amount}, received ${payload.transferAmount}, diff ${diff}đ`,
+      matchedDepositId: candidate._id
+    });
     return res.json({ success: true, ignored: 'amount_mismatch' });
   }
 
@@ -192,6 +271,13 @@ router.post('/payinwebhook', verifyApiKey, async (req, res) => {
       `totalDeposited=${user.totalDeposited.toLocaleString()}đ`
     );
 
+    // Update webhook log với success status
+    await updateWebhookLog(logId, {
+      processingStatus: 'success',
+      processingNote: `Approved deposit #${depositShortId}, credited ${candidate.amount.toLocaleString()}đ, awarded ${spinsAwarded} spins`,
+      matchedDepositId: candidate._id
+    });
+
     // Trả Telegram notification cho admin (best-effort, không block)
     try {
       const { sendDepositNotification } = await import('../services/telegramBot.js');
@@ -207,10 +293,18 @@ router.post('/payinwebhook', verifyApiKey, async (req, res) => {
     // cái thứ 2 sẽ fail vì unique index. Coi như duplicate.
     if (err && (err.code === 11000 || /duplicate key/i.test(err.message || ''))) {
       console.log(`[SePay Webhook] Race condition: SePay id ${sepayId} already inserted`);
+      await updateWebhookLog(logId, {
+        processingStatus: 'duplicate',
+        processingNote: 'Race condition: duplicate key on sepayTransactionId'
+      });
       return res.json({ success: true, duplicate: true });
     }
 
     console.error(`[SePay Webhook] Auto-approve error (SePay id ${sepayId}):`, err);
+    await updateWebhookLog(logId, {
+      processingStatus: 'error',
+      processingNote: `Auto-approve failed: ${err.message}`
+    });
     // Trả 500 để SePay retry (lần sau sẽ hit dedup nếu lần trước đã commit)
     return res.status(500).json({ success: false, message: 'Internal error' });
   }

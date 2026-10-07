@@ -24,6 +24,7 @@ export default function AdminLayout() {
     { path: '/orders', icon: FiShoppingCart, label: 'Đơn hàng' },
     { path: '/deposits', icon: FiDollarSign, label: 'Nạp tiền' },
     { path: '/deposit-config', icon: FiPercent, label: 'Cấu hình nạp' },
+    { path: '/webhook-logs', icon: FiActivity, label: 'Webhook Logs' },
     { path: '/promotions', icon: FiTag, label: 'Khuyến mãi' },
     { path: '/bank-accounts', icon: FiCreditCard, label: 'Tài khoản NH' },
     { path: '/users', icon: FiUsers, label: 'Người dùng' },

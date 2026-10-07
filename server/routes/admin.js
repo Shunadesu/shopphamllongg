@@ -12,6 +12,7 @@ import SiteSetting from '../models/SiteSetting.js';
 import SpinReward from '../models/SpinReward.js';
 import SpinHistory from '../models/SpinHistory.js';
 import AdminAccessLog from '../models/AdminAccessLog.js';
+import WebhookLog from '../models/WebhookLog.js';
 import { adminAuth } from '../middleware/auth.js';
 import { encrypt, decrypt } from '../utils/encryption.js';
 import { calculateSpinsAwarded } from '../utils/spinLogic.js';
@@ -1698,6 +1699,187 @@ router.put('/dev/settings', adminAuth, async (req, res) => {
     res.json({ message: 'Đã cập nhật dev settings', settings: results });
   } catch (error) {
     console.error('[DEV SETTINGS] Update error:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// ==================== WEBHOOK LOGS ====================
+
+// Get webhook logs with filters and pagination
+router.get('/webhook-logs', adminAuth, async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 50, 
+      source, 
+      processingStatus, 
+      search,
+      dateFrom,
+      dateTo 
+    } = req.query;
+
+    const query = {};
+    
+    // Filter by source
+    if (source) {
+      query.source = source;
+    }
+    
+    // Filter by processing status
+    if (processingStatus) {
+      query.processingStatus = processingStatus;
+    }
+    
+    // Date range filter
+    if (dateFrom || dateTo) {
+      query.receivedAt = {};
+      if (dateFrom) {
+        query.receivedAt.$gte = new Date(dateFrom);
+      }
+      if (dateTo) {
+        const endDate = new Date(dateTo);
+        endDate.setHours(23, 59, 59, 999);
+        query.receivedAt.$lte = endDate;
+      }
+    }
+    
+    // Search filter (transaction ID, account number, content)
+    if (search) {
+      query.$or = [
+        { sepayTransactionId: new RegExp(search, 'i') },
+        { accountNumber: new RegExp(search, 'i') },
+        { content: new RegExp(search, 'i') }
+      ];
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const logs = await WebhookLog.find(query)
+      .populate('matchedDepositId', 'userId amount status')
+      .populate({
+        path: 'matchedDepositId',
+        populate: {
+          path: 'userId',
+          select: 'username email'
+        }
+      })
+      .sort({ receivedAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+
+    const total = await WebhookLog.countDocuments(query);
+
+    res.json({
+      logs,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Get webhook logs error:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// Get single webhook log detail
+router.get('/webhook-logs/:id', adminAuth, async (req, res) => {
+  try {
+    const log = await WebhookLog.findById(req.params.id)
+      .populate('matchedDepositId')
+      .populate({
+        path: 'matchedDepositId',
+        populate: {
+          path: 'userId',
+          select: 'username email phone fullName'
+        }
+      })
+      .lean();
+
+    if (!log) {
+      return res.status(404).json({ message: 'Webhook log không tồn tại' });
+    }
+
+    res.json(log);
+  } catch (error) {
+    console.error('Get webhook log detail error:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// Get webhook logs statistics
+router.get('/webhook-logs-stats', adminAuth, async (req, res) => {
+  try {
+    const { dateFrom, dateTo } = req.query;
+    
+    const query = {};
+    if (dateFrom || dateTo) {
+      query.receivedAt = {};
+      if (dateFrom) {
+        query.receivedAt.$gte = new Date(dateFrom);
+      }
+      if (dateTo) {
+        const endDate = new Date(dateTo);
+        endDate.setHours(23, 59, 59, 999);
+        query.receivedAt.$lte = endDate;
+      }
+    }
+
+    // Count by processing status
+    const statusCounts = await WebhookLog.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: '$processingStatus',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Total amount processed (success only)
+    const successQuery = { ...query, processingStatus: 'success' };
+    const totalAmountProcessed = await WebhookLog.aggregate([
+      { $match: successQuery },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: '$amount' }
+        }
+      }
+    ]);
+
+    // Count ignored reasons
+    const ignoredReasons = await WebhookLog.aggregate([
+      { $match: { ...query, processingStatus: 'ignored' } },
+      {
+        $group: {
+          _id: '$processingNote',
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { count: -1 } },
+      { $limit: 5 }
+    ]);
+
+    const total = await WebhookLog.countDocuments(query);
+    const successCount = statusCounts.find(s => s._id === 'success')?.count || 0;
+
+    res.json({
+      total,
+      successCount,
+      successRate: total > 0 ? ((successCount / total) * 100).toFixed(2) : 0,
+      statusCounts: statusCounts.reduce((acc, s) => {
+        acc[s._id] = s.count;
+        return acc;
+      }, {}),
+      totalAmountProcessed: totalAmountProcessed[0]?.total || 0,
+      ignoredReasons
+    });
+  } catch (error) {
+    console.error('Get webhook logs stats error:', error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 });
