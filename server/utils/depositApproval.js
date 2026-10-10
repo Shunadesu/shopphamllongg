@@ -36,13 +36,14 @@ export async function autoApproveDeposit({ deposit, source, note }) {
 
     // === Update user balance + spins ===
     const oldBalance = user.balance;
+    const oldSpins = user.spins || 0;
     const prevTotalDeposited = user.totalDeposited || 0;
     const newTotalDeposited = prevTotalDeposited + deposit.amount;
     const spinsAwarded = calculateSpinsAwarded(prevTotalDeposited, newTotalDeposited);
 
     user.balance += deposit.amount;
     user.totalDeposited = newTotalDeposited;
-    user.spins = (user.spins || 0) + spinsAwarded;
+    user.spins = oldSpins + spinsAwarded;
     await user.save({ session });
 
     await session.commitTransaction();
@@ -56,7 +57,13 @@ export async function autoApproveDeposit({ deposit, source, note }) {
       `totalDeposited: ${prevTotalDeposited.toLocaleString()} → ${newTotalDeposited.toLocaleString()}`
     );
 
-    return { user, spinsAwarded };
+    return {
+      user,
+      spinsAwarded,
+      oldBalance,
+      oldSpins,
+      oldTotalDeposited: prevTotalDeposited,
+    };
   } catch (err) {
     await session.abortTransaction();
     throw err;
