@@ -90,7 +90,9 @@ const DepositPanel = ({ user }) => {
 
   const numericAmount = parseFloat(amount) || 0;
   const currentUsername = authUser?.username || user?.username || '';
-  const transferContent = `${currentUsername} ${amount}`;
+  // ✅ Logic mới: dùng 6-digit code từ backend (bankInfo.transferNote) thay vì ghép username + amount
+  // Backend đã generate mã 6 số từ ObjectId, gán vào depositRequest.transferNote
+  const transferContent = bankInfo?.transferNote || depositInfo?.transferNote || '';
 
   // Window resize
   useEffect(() => {

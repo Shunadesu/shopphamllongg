@@ -4,6 +4,7 @@ import BankAccount from '../models/BankAccount.js';
 import User from '../models/User.js';
 import SiteSetting from '../models/SiteSetting.js';
 import { auth } from '../middleware/auth.js';
+import { generateDepositCode } from '../utils/codeGenerator.js';
 
 // Map bank name (as stored in DB) → VietQR.io bank code
 // Source (chính thức): https://api.vietqr.io/v2/banks
@@ -116,7 +117,7 @@ router.get('/bank-accounts', async (req, res) => {
 // Create deposit request - WITH RATE LIMITING
 router.post('/request', auth, depositLimiter, async (req, res) => {
   try {
-    const { amount, bankAccountId, transferNote } = req.body;
+    const { amount, bankAccountId } = req.body;
 
     if (!amount || amount < 10000) {
       return res.status(400).json({ message: 'Số tiền nạp tối thiểu là 10,000đ' });
@@ -132,9 +133,14 @@ router.post('/request', auth, depositLimiter, async (req, res) => {
       userId: req.user._id,
       amount,
       bankAccountId,
-      transferNote: transferNote || `NAP${Date.now()}`
+      transferNote: '' // Will be set after save
     });
 
+    await depositRequest.save();
+
+    // Generate 6-digit code and update transferNote
+    const depositCode = generateDepositCode(depositRequest._id);
+    depositRequest.transferNote = depositCode;
     await depositRequest.save();
 
     // Send Telegram notification
@@ -144,6 +150,12 @@ router.post('/request', auth, depositLimiter, async (req, res) => {
       console.error('Telegram notification error:', telegramError);
       // Don't throw error, allow request to continue
     }
+
+    console.log(
+      `[Deposits] ✅ Created deposit request #${depositRequest._id.toString().slice(-8).toUpperCase()} ` +
+      `for user=${req.user.username} — ${amount.toLocaleString('vi-VN')}đ, ` +
+      `transferNote="${depositCode}", status=pending`
+    );
 
     res.status(201).json({
       message: 'Yêu cầu nạp tiền đã được gửi. Vui lòng chuyển khoản và chờ admin duyệt.',
@@ -213,8 +225,14 @@ router.post('/card-request', auth, async (req, res) => {
       cardType,
       cardSerial: cardSerial.trim(),
       cardCode: cardCode.trim(),
+      transferNote: '' // Will be set after save
     });
 
+    await depositRequest.save();
+
+    // Generate 6-digit code and update transferNote
+    const depositCode = generateDepositCode(depositRequest._id);
+    depositRequest.transferNote = depositCode;
     await depositRequest.save();
 
     // Gửi Telegram notification cho admin (định dạng riêng cho thẻ cào)
@@ -224,6 +242,12 @@ router.post('/card-request', auth, async (req, res) => {
       console.error('Telegram notification error (card):', telegramError);
       // Không throw để request vẫn thành công phía user
     }
+
+    console.log(
+      `[Deposits] ✅ Created card deposit request #${depositRequest._id.toString().slice(-8).toUpperCase()} ` +
+      `for user=${req.user.username} — ${receivedAmount.toLocaleString('vi-VN')}đ (${faceAmount.toLocaleString('vi-VN')}đ @ ${rate}%), ` +
+      `transferNote="${depositCode}", status=pending`
+    );
 
     res.status(201).json({
       message: 'Yêu cầu nạp thẻ đã được gửi. Vui lòng chờ admin kiểm tra và xác nhận.',
@@ -270,27 +294,28 @@ router.post('/random-request', auth, async (req, res) => {
     const randomIndex = Math.floor(Math.random() * bankAccounts.length);
     const selectedBank = bankAccounts[randomIndex];
 
-    // Lấy username để tạo nội dung chuyển khoản
-    const user = await User.findById(req.user._id).select('username');
-    const transferNote = `${user?.username || 'user'} ${amount}`;
-
     // Tạo DepositRequest pending ngay
     const depositRequest = new DepositRequest({
       userId: req.user._id,
       amount,
       bankAccountId: selectedBank._id,
-      transferNote,
+      transferNote: '' // Will be set after save
     });
 
+    await depositRequest.save();
+
+    // Generate 6-digit code and update transferNote
+    const depositCode = generateDepositCode(depositRequest._id);
+    depositRequest.transferNote = depositCode;
     await depositRequest.save();
 
     // ✅ Log tạo yêu cầu thành công — để debug / audit / đối chiếu với webhook
     const vietqrCode = getVietqrBankCode(selectedBank.bankName);
     console.log(
       `[Deposits] ✅ Created deposit request #${depositRequest._id.toString().slice(-8).toUpperCase()} ` +
-      `for user=${user?.username || 'N/A'} — ${amount.toLocaleString('vi-VN')}đ → ` +
+      `for user=${req.user.username} — ${amount.toLocaleString('vi-VN')}đ → ` +
       `${selectedBank.bankName} (STK ${selectedBank.accountNumber}), ` +
-      `transferNote="${transferNote}", useVietQr=${selectedBank.useVietQr}, ` +
+      `transferNote="${depositCode}", useVietQr=${selectedBank.useVietQr}, ` +
       `vietqrCode="${vietqrCode}", status=pending`
     );
 

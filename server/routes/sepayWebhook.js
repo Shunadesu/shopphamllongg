@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import mongoose from 'mongoose';
 import DepositRequest from '../models/DepositRequest.js';
 import WebhookLog from '../models/WebhookLog.js';
+import User from '../models/User.js';
 import { autoApproveDeposit } from '../utils/depositApproval.js';
 
 const router = express.Router();
@@ -89,27 +90,64 @@ router.get('/payinwebhook/debug', (req, res) => {
   });
 });
 
-// === Helper: parse transferNote "username amount" ===
-// Ví dụ: "namp123 50000" → { username: "namp123", amount: 50000 }
-// Hoặc với prefix VietQR/SePay tự thêm: "QR - testa12345 10000" → vẫn parse đúng.
-function parseTransferContent(content) {
+// === Helper: parse transferNote as 6-digit deposit code ===
+// Accept format:
+// - Exactly "123456" (new format)
+// - "123456 ..." or "123456-..." (code at start)
+// Reject:
+// - Old format like "username 252000" (has letters and space)
+// - "NAP 123456" or other patterns with letters before code
+/**
+ * Parse deposit code from webhook content
+ * Returns: string (6-digit code) | object { type, username, amount } | null
+ */
+function parseDepositCode(content) {
   if (!content || typeof content !== 'string') return null;
 
-  // Match: tên user (chữ thường/số/_/chữ hoa) + khoảng trắng + số tiền ở CUỐI content.
-  // Lý do bỏ anchor `^`: SePay / VietQR generator thường prepend prefix phía trước
-  // (vd: "QR - ", "NAP ") vào content thực nhận từ ngân hàng, dù `transferNote` trong
-  // DB chỉ có "username amount". Anchor `$` ở cuối vẫn bắt buộc amount là số cuối cùng
-  // để tránh match nhầm số ở giữa content (vd: timestamp, mã GD).
-  //
-  // Regex này không có `^`, nên greedy match sẽ tự chọn username dài nhất trước
-  // amount cuối cùng — tránh nhầm với prefix uppercase như "QR", "NAP"...
-  const match = content.trim().match(/([A-Za-z0-9_]+)\s+(\d+)\s*$/);
-  if (!match) return null;
+  const trimmed = content.trim();
 
-  return {
-    username: match[1].toLowerCase(),
-    amount: parseInt(match[2], 10),
-  };
+  // Case 1: Content is exactly 6 digits (new format)
+  if (/^\d{6}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  // Case 2: Content starts with 6 digits followed by space or non-alphanumeric
+  // This handles cases like "997044 FT26282279126632" or "997044-abc"
+  const match = trimmed.match(/^(\d{6})[\s\-]/);
+  if (match) {
+    return match[1];
+  }
+
+  // Case 3: BIDV long format "MBVCB.xxx.username amount.CT ..."
+  // Example: "MBVCB.16457010956.559317.daihung112 2600000.CT tu 1019322584 NGUYEN VAN TAM toi 96247B6RW7 PHAM VAN"
+  const bidvMatch = trimmed.match(/\.([a-zA-Z0-9_]+)\s+(\d+)\.CT/);
+  if (bidvMatch) {
+    return {
+      type: 'bidv',
+      username: bidvMatch[1],
+      amount: parseInt(bidvMatch[2], 10),
+    };
+  }
+
+  // Case 4: Techcombank format "username amount FTxxx"
+  // Example: "duongphuchung 252000 FT26282279126632"
+  // Pattern: <username> <amount> FT<digits>
+  const techcombankMatch = trimmed.match(/^([a-zA-Z0-9_]+)\s+(\d+)\s+FT\d+$/);
+  if (techcombankMatch) {
+    return {
+      type: 'techcombank',
+      username: techcombankMatch[1],
+      amount: parseInt(techcombankMatch[2], 10),
+    };
+  }
+
+  // Reject old format like "username 252000"
+  // Pattern: has space AND has alphabetic characters → old format
+  if (trimmed.includes(' ') && /[a-zA-Z]/.test(trimmed)) {
+    return null;
+  }
+
+  return null;
 }
 
 // === POST /payinwebhook ===
@@ -184,40 +222,74 @@ router.post('/payinwebhook', verifyApiKey, async (req, res) => {
     return res.json({ success: true, duplicate: true });
   }
 
-  // === Parse content → username + amount ===
-  const parsed = parseTransferContent(payload.content);
+  // === Parse content → 6-digit code OR BIDV format ===
+  const parsed = parseDepositCode(payload.content);
   if (!parsed) {
-    console.warn(`[SePay Webhook] Cannot parse content: "${payload.content}" (id=${sepayId})`);
+    console.warn(`[SePay Webhook] Cannot parse deposit code from content: "${payload.content}" (id=${sepayId})`);
     await updateWebhookLog(logId, {
       processingStatus: 'ignored',
-      processingNote: `Cannot parse content: "${payload.content}"`
+      processingNote: `Cannot parse deposit code from content: "${payload.content}"`
     });
     return res.json({ success: true, ignored: 'unparseable_content' });
   }
 
-  // === Tìm DepositRequest pending khớp ===
-  // transferNote format: "${username} ${amount}" — match regex case-insensitive
-  // Lấy cái cũ nhất nếu user có nhiều pending cùng lúc.
-  const amountInVND = parsed.amount;
-  const escapedUsername = parsed.username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const transferNotePattern = new RegExp(`^${escapedUsername}\\s+${amountInVND}$`, 'i');
+  // === Find matching DepositRequest ===
+  let candidate = null;
+  let matchType = 'unknown';
 
-  const candidate = await DepositRequest.findOne({
-    status: 'pending',
-    depositMethod: 'bank',
-    transferNote: transferNotePattern,
-  })
-    .sort({ createdAt: 1 })
-    .populate('userId', 'username isActive');
+  if (typeof parsed === 'string') {
+    // 6-digit code → match exact transferNote
+    matchType = '6-digit-code';
+    candidate = await DepositRequest.findOne({
+      status: 'pending',
+      depositMethod: 'bank',
+      transferNote: parsed,
+    })
+      .sort({ createdAt: 1 })
+      .populate('userId', 'username isActive');
+  } else if (parsed.type === 'bidv' || parsed.type === 'techcombank') {
+    // BIDV / Techcombank format → find user by username, then match amount + recent pending
+    matchType = `${parsed.type}-format`;
+    const { username: bidvUsername, amount: bidvAmount } = parsed;
+
+    // Tìm user theo username
+    const user = await User.findOne({ username: bidvUsername }).select('_id');
+
+    if (!user) {
+      console.warn(
+        `[SePay Webhook] ${parsed.type} format but user not found: "${bidvUsername}" ` +
+        `(SePay id=${sepayId})`
+      );
+      await updateWebhookLog(logId, {
+        processingStatus: 'ignored',
+        processingNote: `${parsed.type} format matched but user "${bidvUsername}" not found`
+      });
+      return res.json({ success: true, ignored: 'user_not_found' });
+    }
+
+    // Match: user + amount + pending + recent
+    candidate = await DepositRequest.findOne({
+      userId: user._id,
+      status: 'pending',
+      depositMethod: 'bank',
+      amount: bidvAmount,
+    })
+      .sort({ createdAt: -1 })
+      .populate('userId', 'username isActive');
+  }
 
   if (!candidate) {
+    const parseDetail = typeof parsed === 'string'
+      ? `code="${parsed}"`
+      : `BIDV username="${parsed.username}", amount=${parsed.amount}`;
+
     console.warn(
-      `[SePay Webhook] No matching pending deposit for content="${payload.content}" ` +
+      `[SePay Webhook] No matching pending deposit for ${parseDetail} via ${matchType} ` +
       `(SePay id=${sepayId}, gateway=${payload.gateway}, accountNumber=${payload.accountNumber})`
     );
     await updateWebhookLog(logId, {
       processingStatus: 'ignored',
-      processingNote: `No matching pending deposit for username="${parsed.username}" amount=${parsed.amount}`
+      processingNote: `No matching pending deposit for ${parseDetail} (${matchType})`
     });
     return res.json({ success: true, ignored: 'no_match' });
   }
@@ -263,9 +335,13 @@ router.post('/payinwebhook', verifyApiKey, async (req, res) => {
 
     // ✅ Webhook callback xử lý thành công — log tổng kết ở cấp handler
     const depositShortId = candidate._id.toString().slice(-8).toUpperCase();
+    const matchDetail = typeof parsed === 'string'
+      ? `code="${parsed}"`
+      : `BIDV user="${parsed.username}", amount=${parsed.amount.toLocaleString()}`;
+
     console.log(
-      `[SePay Webhook] ✅ Webhook callback processed successfully — ` +
-      `SePay id=${sepayId} → deposit #${depositShortId} approved, ` +
+      `[SePay Webhook] ✅ Approved via ${matchType} — ` +
+      `SePay id=${sepayId}, matched ${matchDetail} → deposit #${depositShortId}, ` +
       `user=${user.username}, +${candidate.amount.toLocaleString('vi-VN')}đ → balance=${user.balance.toLocaleString()}đ, ` +
       `+${spinsAwarded} spins (total=${user.spins}), ` +
       `totalDeposited=${user.totalDeposited.toLocaleString()}đ`
@@ -274,7 +350,7 @@ router.post('/payinwebhook', verifyApiKey, async (req, res) => {
     // Update webhook log với success status
     await updateWebhookLog(logId, {
       processingStatus: 'success',
-      processingNote: `Approved deposit #${depositShortId}, credited ${candidate.amount.toLocaleString()}đ, awarded ${spinsAwarded} spins`,
+      processingNote: `Approved deposit #${depositShortId} via ${matchType}, credited ${candidate.amount.toLocaleString()}đ, awarded ${spinsAwarded} spins`,
       matchedDepositId: candidate._id
     });
 
