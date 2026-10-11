@@ -139,9 +139,27 @@ function parseDepositCode(content) {
     }
   }
 
-  // Case 3: Content starts with 6 digits followed by space or non-alphanumeric
+  // Case 2.5: Pattern with dash separator "text - 6digit" (e.g., "QR - 574948")
+  // The dash is a strong indicator that the 6-digit is a code, not an amount.
+  // This handles new BIDV format where content is prefixed with "QR - " or similar.
+  const dashCodeMatch = trimmed.match(/-\s*(\d{6})(?!\d)$/);
+  if (dashCodeMatch) {
+    return dashCodeMatch[1];
+  }
+
+  // Case 2.6: Short uppercase prefix + space + 6-digit code
+  // Examples: "IBFT 239268", "QR 574948", "NAP 388887"
+  // The prefix is 2-6 UPPERCASE letters (BIDV transfer method codes like IBFT, QR, NAP, CT, FT).
+  // This differs from old format "username 252000" where the prefix is typically lowercase
+  // or longer than 6 characters.
+  const shortPrefixMatch = trimmed.match(/^([A-Z]{2,6})\s+(\d{6})$/);
+  if (shortPrefixMatch) {
+    return shortPrefixMatch[2];
+  }
+
+  // Case 3: Content starts with 6 digits followed by space or dash
   // Legacy format: "997044 FT26282279126632" or "997044-abc"
-  // (We check this AFTER the new-format case so that mixed content
+  // (We check this AFTER the new-format cases so that mixed content
   //  like "123456 foo 654321" correctly picks "654321".)
   const match = trimmed.match(/^(\d{6})[\s\-]/);
   if (match) {
