@@ -6,7 +6,8 @@
 - **Case 1**: 6 chữ số chính xác (`123456`) → return string
 - **Case 2**: 6 chữ số + khoảng trắng + text (`997044 FT...`) → return string (6 số đầu)
 - **Case 3**: BIDV format dài → return object `{ type: 'bidv', username, amount }`
-- **Case 4 (MỚI)**: Techcombank format `username amount FTxxx` → return object `{ type: 'techcombank', username, amount }`
+- **Case 4**: Techcombank format `username amount FTxxx` → return object `{ type: 'techcombank', username, amount }`
+- **Case 2.7 (MỚI)**: BIDV "Scan QR" format `Scan QR <6digit> <reference?>` → return object `{ type: 'scan-qr', code }`
 
 **Regex BIDV**: `\.([a-zA-Z0-9_]+)\s+(\d+)\.CT`
 - Tìm pattern: `.username amount.CT` trong content
@@ -15,6 +16,12 @@
 **Regex Techcombank**: `^([a-zA-Z0-9_]+)\s+(\d+)\s+FT\d+$`
 - Tìm pattern: `username amount FT<digits>` ở đầu
 - Ví dụ: `duongphuchung 252000 FT26282279126632`
+
+**Regex Scan QR**: `^Scan\s+QR\s+(\d{6})(?:\s+\S+)?$`
+- Tìm pattern: `Scan QR <6digit>` ở đầu, optional trailing reference
+- Ví dụ: `Scan QR 066023 2109693809825206272` → code = `066023`
+- Trailing reference (mã giao dịch ngân hàng) là optional, được bỏ qua
+- KHÔNG match `QR - thanhdrums9 252000` (old format có dấu "-" và username viết thường)
 
 ### 2. Update webhook handler logic
 Thay vì chỉ match theo 6-digit code, giờ hỗ trợ 3 loại match:
@@ -50,12 +57,22 @@ Match: DepositRequest { userId, status: 'pending', amount: 252000 }
 Sort by createdAt descending (newest pending first - gần nhất)
 ```
 
+**Type 4 (MỚI): Scan QR format** (BIDV QR payment)
+```
+parsed = { type: 'scan-qr', code: '066023' }
+  ↓
+Match: DepositRequest { status: 'pending', transferNote: '066023' }
+  ↓
+Sort by createdAt ascending (oldest pending first)
+```
+
 ### 3. Improved logging
 Log hiển thị loại match được sử dụng:
 ```
 ✅ Approved via 6-digit-code — SePay id=... matched code="123456" → deposit #...
 ✅ Approved via bidv-format — SePay id=... matched BIDV user="daihung112", amount=2600000 → deposit #...
 ✅ Approved via techcombank-format — SePay id=... matched Techcombank user="duongphuchung", amount=252000 → deposit #...
+✅ Approved via scan-qr-format — SePay id=... matched Scan QR code="066023" → deposit #...
 ```
 
 ## Lợi ích
@@ -82,6 +99,14 @@ MBVCB.16457010956.559317.daihung112 2600000.CT tu 1019322584 NGUYEN VAN TAM toi 
 ```
 - Parser: return "123456"
 - Webhook tìm: transferNote="123456" + pending
+- Approved ✅
+
+### Format Scan QR (MỚI)
+```
+Scan QR 066023 2109693809825206272
+```
+- Parser: return `{ type: 'scan-qr', code: '066023' }`
+- Webhook tìm: transferNote="066023" + pending
 - Approved ✅
 
 ### Format cũ (reject như trước)

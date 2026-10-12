@@ -100,7 +100,7 @@ router.get('/payinwebhook/debug', (req, res) => {
 // - "NAP 123456" or other patterns with letters before code
 /**
  * Parse deposit code from webhook content
- * Returns: string (6-digit code) | object { type, username, amount } | null
+ * Returns: string (6-digit code) | object { type, username, amount } | object { type: 'scan-qr', code } | null
  */
 function parseDepositCode(content) {
   if (!content || typeof content !== 'string') return null;
@@ -157,6 +157,41 @@ function parseDepositCode(content) {
     return shortPrefixMatch[2];
   }
 
+  // Case 2.7 (NEW): BIDV "Scan QR" format with optional trailing reference number
+  // Example: "Scan QR 066023 2109693809825206272"
+  // Pattern: "Scan QR" + 6-digit code + optional (space + reference)
+  // The "Scan QR" prefix is BIDV's marker for QR-code-based payments (NAP qua QR).
+  // Trailing reference number is the bank's internal transaction ID — bỏ qua, chỉ lấy 6-digit.
+  // Distinct from Case 2.6 vì Case 2.6 chỉ match đúng 2 token, còn format này có 3-4 token.
+  // Lưu ý: KHÔNG match "QR - thanhdrums9 252000" (old format có dấu "-" và username viết thường).
+  const scanQrMatch = trimmed.match(/^Scan\s+QR\s+(\d{6})(?:\s+\S+)?$/);
+  if (scanQrMatch) {
+    return {
+      type: 'scan-qr',
+      code: scanQrMatch[1],
+    };
+  }
+
+  // Case 2.8 (NEW): Bank short prefix + 6-digit code (UPPERCASE only, optional space).
+  // Bổ sung cho Case 2.6 (chỉ match UPPERCASE + có space). Mục đích bắt các format:
+  //   "SE123456" / "SE 123456" — SePay default payment code prefix
+  //   "MB123456" / "MB 123456" — MBBank chuyển khoản QR
+  //   "VCB123456" / "VCB 123456" — Vietcombank
+  //   "BIDV123456" / "BID 123456" / "BIDV 123456" — BIDV
+  //   "ACB123456" / "ACB 123456" — ACB
+  //   "TPB123456" / "TPB 123456" — TPBank
+  //   "VPB123456" / "VPB 123456" — VPBank
+  //   "ICB123456" / "ICB 123456" — VietinBank
+  //   "TCB123456" / "TCB 123456" — Techcombank
+  // Whitelist bank codes thay vì match bất kỳ 2-6 chữ cái nào — tránh match nhầm với
+  // username (vd: user tên "mb" gõ "mb 252000" sẽ KHÔNG match ở đây, an toàn).
+  // UPPERCASE-only vì ngân hàng gửi prefix viết HOA; nếu user gõ thường thì rơi vào
+  // reject (chấp nhận miss thay vì risk approve nhầm).
+  const bankPrefixMatch = trimmed.match(/^(?:SE|SEPAY|MB|VCB|BIDV?|ACB|TPB|VPB|ICB|TCB)\s*(\d{6})$/);
+  if (bankPrefixMatch) {
+    return bankPrefixMatch[1];
+  }
+
   // Case 3: Content starts with 6 digits followed by space or dash
   // Legacy format: "997044 FT26282279126632" or "997044-abc"
   // (We check this AFTER the new-format cases so that mixed content
@@ -187,6 +222,23 @@ function parseDepositCode(content) {
       username: techcombankMatch[1],
       amount: parseInt(techcombankMatch[2], 10),
     };
+  }
+
+  // Case 6 (NEW): Vietnamese generic text + 6-digit code (case-insensitive).
+  // Đặt TRƯỚC reject logic cuối vì content có space + letters sẽ bị reject.
+  // Các pattern hay gặp:
+  //   "Chuyen tien 123456" / "chuyen tien 123456"
+  //   "Thanh toan 123456" / "thanh toan 123456"
+  //   "Nap tien 123456" / "nap tien 123456"
+  //   "CK 123456" (chuyển khoản viết tắt)
+  //   "TT 123456" (thanh toán viết tắt)
+  //   "Chuyển tiền 123456" (có dấu tiếng Việt — regex có flag 'i' nhưng \w không bắt
+  //   dấu; bỏ qua các variant có dấu, chỉ cover dạng không dấu vì hầu hết bank
+  //   trong content CK dùng không dấu hoặc SePay normalize về không dấu).
+  // KHÔNG match "username 252000" vì pattern yêu cầu keyword cố định ở đầu.
+  const vietTextMatch = trimmed.match(/^(?:chuyen\s+tien|thanh\s+toan|nap\s+tien|ck|tt)\s+(\d{6})$/i);
+  if (vietTextMatch) {
+    return vietTextMatch[1];
   }
 
   // Reject old format like "username 252000"
@@ -298,6 +350,16 @@ router.post('/payinwebhook', verifyApiKey, async (req, res) => {
     })
       .sort({ createdAt: 1 })
       .populate('userId', 'username isActive');
+  } else if (parsed.type === 'scan-qr') {
+    // BIDV "Scan QR" format → match exact transferNote (giống 6-digit-code)
+    matchType = 'scan-qr-format';
+    candidate = await DepositRequest.findOne({
+      status: 'pending',
+      depositMethod: 'bank',
+      transferNote: parsed.code,
+    })
+      .sort({ createdAt: 1 })
+      .populate('userId', 'username isActive');
   } else if (parsed.type === 'bidv' || parsed.type === 'techcombank') {
     // BIDV / Techcombank format → find user by username, then match amount + recent pending
     matchType = `${parsed.type}-format`;
@@ -337,7 +399,9 @@ router.post('/payinwebhook', verifyApiKey, async (req, res) => {
   if (!candidate) {
     const parseDetail = typeof parsed === 'string'
       ? `code="${parsed}"`
-      : `BIDV username="${parsed.username}", amount=${parsed.amount}`;
+      : parsed.type === 'scan-qr'
+        ? `Scan QR code="${parsed.code}"`
+        : `BIDV username="${parsed.username}", amount=${parsed.amount}`;
 
     console.warn(
       `[SePay Webhook] No matching pending deposit for ${parseDetail} via ${matchType} ` +
@@ -348,9 +412,13 @@ router.post('/payinwebhook', verifyApiKey, async (req, res) => {
       processingNote: `No matching pending deposit for ${parseDetail} (${matchType})`
     });
     notifyIgnored(payload, 'no_match', {
-      parsedCode: typeof parsed === 'string' ? parsed : null,
-      parsedUsername: typeof parsed === 'object' ? parsed.username : null,
-      parsedAmount: typeof parsed === 'object' ? parsed.amount : null,
+      parsedCode: typeof parsed === 'string'
+        ? parsed
+        : parsed.type === 'scan-qr'
+          ? parsed.code
+          : null,
+      parsedUsername: typeof parsed === 'object' && parsed.type !== 'scan-qr' ? parsed.username : null,
+      parsedAmount: typeof parsed === 'object' && parsed.type !== 'scan-qr' ? parsed.amount : null,
       matchType,
     });
     return res.json({ success: true, ignored: 'no_match' });
@@ -416,7 +484,9 @@ router.post('/payinwebhook', verifyApiKey, async (req, res) => {
     const depositShortId = candidate._id.toString().slice(-8).toUpperCase();
     const matchDetail = typeof parsed === 'string'
       ? `code="${parsed}"`
-      : `BIDV user="${parsed.username}", amount=${parsed.amount.toLocaleString()}`;
+      : parsed.type === 'scan-qr'
+        ? `Scan QR code="${parsed.code}"`
+        : `BIDV user="${parsed.username}", amount=${parsed.amount.toLocaleString()}`;
 
     console.log(
       `[SePay Webhook] ✅ Approved via ${matchType} — ` +

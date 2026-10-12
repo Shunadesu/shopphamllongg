@@ -27,7 +27,7 @@ const AccountCard = ({ account, onBuyNow }) => {
       {/* Content */}
       <div className="flex flex-col">
         <Link to={`/account/${account._id}`}>
-          <h3 className="bg-primary text-transparent p-2 text-sm font-semibold text-slate-900 dark:text-white mb-1 line-clamp-2 min-h-[1rem]  transition-colors">
+          <h3 className="bg-primary text-transparent p-1 text-sm font-semibold text-slate-900 dark:text-white mb-1 line-clamp-1 min-h-[1rem]  transition-colors">
             {account.title}
           </h3>
         </Link>

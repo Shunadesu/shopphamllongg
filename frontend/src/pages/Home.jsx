@@ -235,6 +235,7 @@ const Home = () => {
   // Handle category click - check if has subcategories
   const handleCategoryClick = useCallback((category) => {
     setDisplayLimit(PAGE_SIZE); // reset to first page on category change
+    setFilters(prev => ({ ...prev, sortBy: 'price_desc' })); // auto sort by highest price first
     const hasSubs = category.subcategories && category.subcategories.length > 0;
 
     if (hasSubs) {
@@ -255,6 +256,7 @@ const Home = () => {
   // Handle subcategory selection
   const handleSubcategoryClick = useCallback((subcategory) => {
     setDisplayLimit(PAGE_SIZE);
+    setFilters(prev => ({ ...prev, sortBy: 'price_desc' })); // auto sort by highest price first
     setSelectedSubcategory(subcategory);
     setTimeout(() => {
       accountsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
