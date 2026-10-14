@@ -3,7 +3,9 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
-import { useCategories, useAccountList } from '../hooks';
+import { useCategories, useAccountList, useUserProfile } from '../hooks';
+import { useUserStore } from '../store/data/userStore';
+import { useOrderStore } from '../store/data/orderStore';
 import { ShopSkeleton, AccountCardSkeleton } from '../components/SkeletonLoader';
 import { FiSearch, FiTag, FiShoppingCart, FiZap, FiChevronRight, FiChevronLeft } from 'react-icons/fi';
 import BuyNowModal from '../components/BuyNowModal';
@@ -222,6 +224,7 @@ const Shop = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthenticated } = useAuthStore();
+  const { data: userData } = useUserProfile();
   const incrementCart = useCartStore((s) => s.incrementCart);
 
   // Get category and subcategory from URL query params
@@ -333,11 +336,25 @@ const Shop = () => {
         useAuthStore.getState().updateBalance(response.data.newBalance);
       }
       
+      // Force refresh profile
+      await useUserStore.getState().fetchProfile(true);
+      
+      // Invalidate orders cache
+      useOrderStore.getState().invalidateOrders();
+      
       setShowBuyNowModal(false);
       navigate(`/orders/${response.data.order._id}`);
     } catch (error) {
       const message = error.response?.data?.message || 'Không thể mua hàng';
-      toast.error(message);
+      
+      // Check if error is due to insufficient balance
+      if (error.response?.status === 400 && message.includes('not enough balance')) {
+        toast.error(message);
+        setShowBuyNowModal(false);
+        navigate('/profile?view=deposit');
+      } else {
+        toast.error(message);
+      }
     } finally {
       setBuyingNow(false);
     }
@@ -699,6 +716,7 @@ const Shop = () => {
         account={selectedAccount}
         onConfirm={handleConfirmBuyNow}
         loading={buyingNow}
+        userBalance={userData?.balance}
       />
     </div>
   );

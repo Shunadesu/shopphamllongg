@@ -1,11 +1,13 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useSliders, useCategories, useAccountList, useHasSubcategories } from '../hooks';
+import { useSliders, useCategories, useAccountList, useHasSubcategories, useUserProfile } from '../hooks';
 import { FiChevronRight, FiChevronLeft, FiSearch, FiX } from 'react-icons/fi';
 import AccountCard from '../components/AccountCard';
 import { AccountCardSkeleton } from '../components/SkeletonLoader';
 import BuyNowModal from '../components/BuyNowModal';
 import { useAuthStore } from '../store/authStore';
+import { useUserStore } from '../store/data/userStore';
+import { useOrderStore } from '../store/data/orderStore';
 import api from '../utils/api';
 import { getResponsiveImageUrl } from '../utils/api';
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -83,6 +85,7 @@ const Home = () => {
   const [selectedSubcategory, setSelectedSubcategory] = useState(null); // Danh mục con đang chọn (để lọc accounts)
   const accountsRef = useRef(null);
   const { isAuthenticated } = useAuthStore();
+  const { data: userData } = useUserProfile();
   
   // Buy Now Modal state
   const [showBuyNowModal, setShowBuyNowModal] = useState(false);
@@ -318,11 +321,25 @@ const Home = () => {
         useAuthStore.getState().updateBalance(response.data.newBalance);
       }
       
+      // Force refresh profile
+      await useUserStore.getState().fetchProfile(true);
+      
+      // Invalidate orders cache
+      useOrderStore.getState().invalidateOrders();
+      
       setShowBuyNowModal(false);
       navigate(`/orders/${response.data.order._id}`);
     } catch (error) {
       const message = error.response?.data?.message || 'Không thể mua hàng';
-      toast.error(message);
+      
+      // Check if error is due to insufficient balance
+      if (error.response?.status === 400 && message.includes('not enough balance')) {
+        toast.error(message);
+        setShowBuyNowModal(false);
+        navigate('/profile?view=deposit');
+      } else {
+        toast.error(message);
+      }
     } finally {
       setBuyingNow(false);
     }
@@ -804,6 +821,7 @@ const Home = () => {
         loading={buyingNow}
         onClose={() => setShowBuyNowModal(false)}
         onConfirm={handleConfirmBuyNow}
+        userBalance={userData?.balance}
       />
     </div>
   );

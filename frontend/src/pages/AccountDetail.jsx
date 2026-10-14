@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/authStore';
 import { useUserStore } from '../store/data/userStore';
 import { useOrderStore } from '../store/data/orderStore';
 import { useCartStore } from '../store/cartStore';
-import { useAccountDetail, useAccountList } from '../hooks';
+import { useAccountDetail, useAccountList, useUserProfile } from '../hooks';
 import { FiShoppingCart, FiImage, FiChevronDown, FiChevronUp, FiZoomIn, FiX } from 'react-icons/fi';
 import { useState, useEffect, useMemo } from 'react';
 import SEOHead from '../components/SEOHead';
@@ -29,6 +29,7 @@ const AccountDetail = ({ onOpenAuth }) => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
+  const { data: userData } = useUserProfile();
   const incrementCart = useCartStore((s) => s.incrementCart);
   const [selectedImage, setSelectedImage] = useState(0);
   const [galleryOpen, setGalleryOpen] = useState(true);
@@ -135,7 +136,16 @@ const AccountDetail = ({ onOpenAuth }) => {
       // Điều hướng tới danh sách tài khoản đã mua (tab purchased-accounts)
       navigate('/profile?view=purchased-accounts');
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Có lỗi xảy ra');
+      const message = error.response?.data?.message || 'Có lỗi xảy ra';
+      
+      // Check if error is due to insufficient balance
+      if (error.response?.status === 400 && message.includes('not enough balance')) {
+        toast.error(message);
+        setShowBuyNowModal(false);
+        navigate('/profile?view=deposit');
+      } else {
+        toast.error(message);
+      }
     } finally {
       setBuyingNow(false);
     }
@@ -518,6 +528,7 @@ const AccountDetail = ({ onOpenAuth }) => {
         account={account}
         onConfirm={handleConfirmBuyNow}
         loading={buyingNow}
+        userBalance={userData?.balance}
       />
     </div>
   );
