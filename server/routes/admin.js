@@ -951,14 +951,29 @@ router.put('/bank-accounts/:id/toggle', adminAuth, async (req, res) => {
 
 // ==================== USERS ====================
 
-// Get all users
+// Get all users - include hashed password
 router.get('/users', adminAuth, async (req, res) => {
   try {
-    const { page = 1, limit = 20, search } = req.query;
+    const { page = 1, limit = 20, search, status, role, hasPurchases } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    // Build search query
-    const query = { role: 'user' };
+    // Build query object
+    const query = {};
+
+    // Filter by status (active/inactive)
+    if (status && status !== 'all') {
+      query.isActive = status === 'active';
+    }
+
+    // Filter by role (user/admin)
+    if (role && role !== 'all') {
+      query.role = role;
+    } else {
+      // Default: show only users unless explicitly filtered
+      query.role = 'user';
+    }
+
+    // Apply search if exists
     if (search) {
       query.$or = [
         { username: { $regex: search, $options: 'i' } },
@@ -968,14 +983,13 @@ router.get('/users', adminAuth, async (req, res) => {
     }
 
     const users = await User.find(query)
-      .select('-password')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit))
       .lean();
 
     // Get purchased accounts count for each user
-    const usersWithStats = await Promise.all(
+    let usersWithStats = await Promise.all(
       users.map(async (user) => {
         const purchasedAccountsCount = await Order.countDocuments({
           userId: user._id,
@@ -988,15 +1002,29 @@ router.get('/users', adminAuth, async (req, res) => {
       })
     );
 
+    // Apply hasPurchases filter (must be done after counting)
+    if (hasPurchases && hasPurchases !== 'all') {
+      if (hasPurchases === 'yes') {
+        usersWithStats = usersWithStats.filter(u => u.purchasedAccountsCount > 0);
+      } else if (hasPurchases === 'no') {
+        usersWithStats = usersWithStats.filter(u => u.purchasedAccountsCount === 0);
+      }
+    }
+
     const total = await User.countDocuments(query);
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const totalPages = Math.ceil(total / limitNum);
 
     res.json({
       users: usersWithStats,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / parseInt(limit))
+        currentPage: pageNum,
+        totalPages,
+        totalUsers: total,
+        limit: limitNum,
+        hasNextPage: pageNum < totalPages,
+        hasPrevPage: pageNum > 1
       }
     });
   } catch (error) {
@@ -1047,6 +1075,164 @@ router.put('/users/:id/adjust-balance', adminAuth, async (req, res) => {
     await user.save();
     res.json({ message: 'Đã điều chỉnh số dư', user });
   } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// Change user password (admin)
+router.patch('/users/:id/password', adminAuth, async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ 
+        message: 'Mật khẩu phải có ít nhất 6 ký tự' 
+      });
+    }
+
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({ message: 'Người dùng không tồn tại' });
+    }
+
+    // Set new password (will be hashed by pre-save hook)
+    user.password = newPassword;
+    await user.save();
+
+    console.log(`✅ Admin ${req.user.username} changed password for user ${user.username}`);
+
+    // Return user with hashed password for admin verification
+    const userObj = user.toObject();
+    
+    res.json({ 
+      message: 'Đã đổi mật khẩu thành công',
+      user: {
+        _id: userObj._id,
+        username: userObj.username,
+        password: userObj.password // hashed password
+      }
+    });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// Delete user and related data
+router.delete('/users/:id', adminAuth, async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: 'ID người dùng không hợp lệ' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Người dùng không tồn tại' });
+    }
+
+    // Prevent deleting admin user
+    if (user.role === 'admin') {
+      return res.status(403).json({ message: 'Không thể xóa tài khoản admin' });
+    }
+
+    // Delete related data
+    await Promise.all([
+      Order.deleteMany({ userId }),
+      DepositRequest.deleteMany({ userId }),
+      SpinHistory.deleteMany({ userId })
+    ]);
+
+    // Delete user
+    await User.findByIdAndDelete(userId);
+
+    console.log(`✅ Admin ${req.user.username} deleted user ${user.username} (ID: ${userId})`);
+
+    res.json({ 
+      message: 'Đã xóa người dùng và dữ liệu liên quan thành công'
+    });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// Get user's purchased accounts
+router.get('/users/:id/purchased-accounts', adminAuth, async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: 'ID người dùng không hợp lệ' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Người dùng không tồn tại' });
+    }
+
+    // Get all completed orders with account details
+    const orders = await Order.find({
+      userId,
+      status: 'completed'
+    })
+      .populate('accountId', 'accountName accountPassword serverName region price')
+      .sort({ completedAt: -1 })
+      .lean();
+
+    console.log(`✅ Admin ${req.user.username} viewed purchased accounts for user ${user.username}`);
+
+    res.json({
+      username: user.username,
+      fullName: user.fullName,
+      totalPurchased: orders.length,
+      accounts: orders.map(order => ({
+        _id: order._id,
+        accountName: order.accountId?.accountName || 'N/A',
+        accountPassword: order.accountId?.accountPassword || 'N/A',
+        serverName: order.accountId?.serverName || 'N/A',
+        region: order.accountId?.region || 'N/A',
+        price: order.accountId?.price || 0,
+        purchasedAt: order.completedAt || order.createdAt,
+        deliveryStatus: order.status
+      }))
+    });
+  } catch (error) {
+    console.error('Get purchased accounts error:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// Adjust user spins
+router.put('/users/:id/spins', adminAuth, async (req, res) => {
+  try {
+    const { spins } = req.body;
+    
+    if (typeof spins !== 'number' || spins < 0) {
+      return res.status(400).json({ message: 'Số lượt quay phải là số nguyên không âm' });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'Người dùng không tồn tại' });
+    }
+
+    const oldSpins = user.spins || 0;
+    user.spins = spins;
+    await user.save();
+
+    console.log(`✅ Admin ${req.user.username} adjusted spins for ${user.username}: ${oldSpins} → ${spins}`);
+
+    res.json({ 
+      message: 'Đã cập nhật số lượt quay thành công',
+      user 
+    });
+  } catch (error) {
+    console.error('Adjust spins error:', error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 });

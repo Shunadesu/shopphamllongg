@@ -3,13 +3,15 @@ import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import api from '../utils/api';
 import { useAuthStore } from '../store/authStore';
-import { FiUser, FiLock, FiX, FiAtSign } from 'react-icons/fi';
+import { FiUser, FiLock, FiX, FiAtSign, FiEye, FiEyeOff } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const AuthDrawer = ({ isOpen, onClose, initialView = 'login' }) => {
   const { login } = useAuthStore();
   const [view, setView] = useState(initialView);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const { register, handleSubmit, formState: { errors }, watch, reset } = useForm();
   const password = watch('password');
@@ -19,6 +21,8 @@ const AuthDrawer = ({ isOpen, onClose, initialView = 'login' }) => {
     if (isOpen) {
       setView(initialView);
       reset();
+      setShowPassword(false);
+      setShowConfirmPassword(false);
     }
   }, [isOpen, initialView, reset]);
 
@@ -194,7 +198,7 @@ const AuthDrawer = ({ isOpen, onClose, initialView = 'login' }) => {
                     <div className="relative">
                       <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-400" />
                       <input
-                        type="password"
+                        type={showPassword ? "text" : "password"}
                         autoComplete="current-password"
                         {...register('password', {
                           required: 'Mật khẩu là bắt buộc',
@@ -203,9 +207,16 @@ const AuthDrawer = ({ isOpen, onClose, initialView = 'login' }) => {
                             message: 'Mật khẩu phải có ít nhất 6 ký tự'
                           }
                         })}
-                        className="input-field pl-10"
+                        className="input-field pl-10 pr-10"
                         placeholder="••••••••"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                      >
+                        {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                      </button>
                     </div>
                     {errors.password && (
                       <p className="text-red-400 text-sm mt-1">{errors.password.message}</p>
@@ -286,7 +297,7 @@ const AuthDrawer = ({ isOpen, onClose, initialView = 'login' }) => {
                     <div className="relative">
                       <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-400" />
                       <input
-                        type="password"
+                        type={showPassword ? "text" : "password"}
                         autoComplete="new-password"
                         {...register('password', {
                           required: 'Mật khẩu là bắt buộc',
@@ -295,9 +306,16 @@ const AuthDrawer = ({ isOpen, onClose, initialView = 'login' }) => {
                             message: 'Mật khẩu phải có ít nhất 6 ký tự'
                           }
                         })}
-                        className="input-field pl-10"
+                        className="input-field pl-10 pr-10"
                         placeholder="••••••••"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                      >
+                        {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                      </button>
                     </div>
                     {errors.password && (
                       <p className="text-red-400 text-sm mt-1">{errors.password.message}</p>
@@ -310,15 +328,22 @@ const AuthDrawer = ({ isOpen, onClose, initialView = 'login' }) => {
                     <div className="relative">
                       <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-400" />
                       <input
-                        type="password"
+                        type={showConfirmPassword ? "text" : "password"}
                         autoComplete="new-password"
                         {...register('confirmPassword', {
                           required: 'Vui lòng xác nhận mật khẩu',
                           validate: value => value === password || 'Mật khẩu không khớp'
                         })}
-                        className="input-field pl-10"
+                        className="input-field pl-10 pr-10"
                         placeholder="••••••••"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                      >
+                        {showConfirmPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                      </button>
                     </div>
                     {errors.confirmPassword && (
                       <p className="text-red-400 text-sm mt-1">{errors.confirmPassword.message}</p>
@@ -346,6 +371,8 @@ const AuthDrawer = ({ isOpen, onClose, initialView = 'login' }) => {
                       onClick={() => {
                         setView('register');
                         reset();
+                        setShowPassword(false);
+                        setShowConfirmPassword(false);
                       }}
                       className="text-primary hover:text-primary-light font-medium"
                     >
@@ -360,6 +387,8 @@ const AuthDrawer = ({ isOpen, onClose, initialView = 'login' }) => {
                       onClick={() => {
                         setView('login');
                         reset();
+                        setShowPassword(false);
+                        setShowConfirmPassword(false);
                       }}
                       className="text-primary hover:text-primary-light font-medium"
                     >

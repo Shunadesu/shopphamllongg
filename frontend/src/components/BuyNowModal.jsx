@@ -1,6 +1,8 @@
 import { FiX, FiAlertCircle } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 
 export default function BuyNowModal({ isOpen, onClose, account, onConfirm, loading, userBalance }) {
+  const navigate = useNavigate();
   if (!isOpen) return null;
 
   const accountPrice = account?.price || 0;
@@ -85,7 +87,7 @@ export default function BuyNowModal({ isOpen, onClose, account, onConfirm, loadi
             <button
               onClick={() => {
                 onClose();
-                window.location.href = '/profile?view=deposit';
+                navigate('/profile?view=deposit');
               }}
               className="flex-1 px-4 py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition"
             >

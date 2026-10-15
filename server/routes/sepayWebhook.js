@@ -107,6 +107,15 @@ function parseDepositCode(content) {
 
   const trimmed = content.trim();
 
+  // Case 0 (NEW): BIDV semicolon-separated format
+  // Example: "BIDV;96247B6RW7;544587"
+  // Pattern: BIDV;{subAccount};{6-digit-code}
+  // The last token after the final semicolon is the deposit code.
+  const bidvSemicolonMatch = trimmed.match(/^BIDV;[^;]+;(\d{6})$/);
+  if (bidvSemicolonMatch) {
+    return bidvSemicolonMatch[1];
+  }
+
   // Case 1: Content is exactly 6 digits (new format)
   if (/^\d{6}$/.test(trimmed)) {
     return trimmed;
