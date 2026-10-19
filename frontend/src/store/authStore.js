@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useCartStore } from './cartStore';
+import { onAuthError } from '../utils/authEvents';
 
 export const useAuthStore = create(
   persist(
@@ -60,3 +61,19 @@ export const useAuthStore = create(
     }
   )
 );
+
+// Lắng nghe auth error từ utils/api.js (response interceptor 401).
+// Khi nhận 401, gọi lại action `logout()` đã có sẵn để đảm bảo state + localStorage
+// được dọn sạch và ProtectedRoute tự mở AuthDrawer.
+let _authErrorListenerRegistered = false;
+const registerAuthErrorListener = () => {
+  if (_authErrorListenerRegistered) return;
+  _authErrorListenerRegistered = true;
+  onAuthError(() => {
+    const state = useAuthStore.getState();
+    if (state.isAuthenticated) {
+      state.logout();
+    }
+  });
+};
+registerAuthErrorListener();

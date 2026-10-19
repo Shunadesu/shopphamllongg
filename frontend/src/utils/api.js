@@ -1,4 +1,6 @@
 import axios from 'axios';
+import toast from 'react-hot-toast';
+import { emitAuthError } from './authEvents';
 
 // Use relative path for proxy in dev, or full URL for production
 const isDev = import.meta.env.DEV;
@@ -100,14 +102,37 @@ api.interceptors.request.use(
 );
 
 // Handle response errors
+let isLoggingOut = false;
+let lastLogoutAt = 0;
+const LOGOUT_COOLDOWN_MS = 5000;
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Unauthorized - clear token and redirect to login
+      const url = error.config?.url || '';
+
+      // Không tự logout khi 401 đến từ chính các endpoint auth công khai
+      // (vd: nhập sai mật khẩu ở /auth/login, username đã tồn tại ở /auth/register).
+      if (url.includes('/auth/login') || url.includes('/auth/register')) {
+        return Promise.reject(error);
+      }
+
+      // Chống toast spam + emit trùng khi nhiều request fail đồng thời.
+      const now = Date.now();
+      if (!isLoggingOut && now - lastLogoutAt > LOGOUT_COOLDOWN_MS) {
+        isLoggingOut = true;
+        lastLogoutAt = now;
+        emitAuthError(); // → authStore.logout() thông qua authEvents bus
+        toast.error('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại');
+        setTimeout(() => {
+          isLoggingOut = false;
+        }, LOGOUT_COOLDOWN_MS);
+      }
+
+      // Luôn dọn token để request kế tiếp không lặp lại 401.
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      // Don't redirect to /login anymore, just clear
     }
     return Promise.reject(error);
   }
