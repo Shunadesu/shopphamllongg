@@ -9,9 +9,15 @@ const router = express.Router();
 // Get all accounts with filters
 router.get('/', async (req, res) => {
   try {
-    const { category, subcategory, minPrice, maxPrice, search, code, sortBy, page = 1, limit = 12 } = req.query;
+    const { category, subcategory, minPrice, maxPrice, search, code, sortBy, status = 'available', page = 1, limit = 12 } = req.query;
 
-    const query = { status: 'available' };
+    // Handle status filter: 'all' = show both available and sold
+    const query = {};
+    if (status === 'all') {
+      query.status = { $in: ['available', 'sold'] };
+    } else {
+      query.status = status;
+    }
 
     if (category) {
       query.categoryId = category;

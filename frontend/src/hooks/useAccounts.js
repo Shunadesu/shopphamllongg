@@ -10,6 +10,7 @@ export function useAccountList(params = {}) {
     params.page,
     params.limit,
     params.category,
+    params.status,
   ]);
   const entry = useAccountListStore((s) => s.byFilter[key]);
   const loading = useAccountListStore((s) => s.loading[key]);

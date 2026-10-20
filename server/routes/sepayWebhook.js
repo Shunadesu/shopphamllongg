@@ -233,6 +233,14 @@ function parseDepositCode(content) {
     };
   }
 
+  // Case 5.5 (NEW): Code and amount separated by comma
+  // Example: "ZP7DCJUND45H, 144590" or "ZP7DCJUND45H,144590"
+  // Pattern: {CODE}, {AMOUNT} where CODE is alphanumeric (deposit reference from SePay)
+  const commaMatch = trimmed.match(/^([A-Z0-9]+)\s*,\s*(\d+)$/);
+  if (commaMatch) {
+    return commaMatch[1];
+  }
+
   // Case 6 (NEW): Vietnamese generic text + 6-digit code (case-insensitive).
   // Đặt TRƯỚC reject logic cuối vì content có space + letters sẽ bị reject.
   // Các pattern hay gặp:

@@ -8,6 +8,7 @@ import BuyNowModal from '../components/BuyNowModal';
 import { useAuthStore } from '../store/authStore';
 import { useUserStore } from '../store/data/userStore';
 import { useOrderStore } from '../store/data/orderStore';
+import { useAccountListStore } from '../store/data/accountListStore';
 import api from '../utils/api';
 import { getResponsiveImageUrl } from '../utils/api';
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -138,7 +139,14 @@ const Home = () => {
   const { data: categories, loading: categoriesLoading } = useCategories();
 
   // Fetch all accounts (for grouping by category)
-  const { accounts: allAccounts, loading: accountsLoading } = useAccountList({ limit: 100 });
+  const { accounts: allAccounts, loading: accountsLoading, refresh, pagination } = useAccountList({ limit: 1000, status: 'available' });
+
+  // Debug: log khi allAccounts thay đổi
+  useEffect(() => {
+    console.log('[Home] allAccounts length:', allAccounts.length);
+    console.log('[Home] pagination.total:', pagination?.total);
+    console.log('[Home] allAccounts:', allAccounts);
+  }, [allAccounts, pagination]);
 
   // Determine data to display
   // Categories: skeleton during initial load, real data when loaded, empty state when no data
@@ -486,6 +494,8 @@ const Home = () => {
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-1.5 items-stretch">
                 {displayCategories.map((category) => {
+                  // Fetch count for this category from pagination.total when displaying
+                  // For now, use local group count as fallback
                   const count = (accountsByCategory[category._id] || []).length;
                   const hasSubs = category.subcategories && category.subcategories.length > 0;
                   const isActive = selectedParent?._id === category._id;
