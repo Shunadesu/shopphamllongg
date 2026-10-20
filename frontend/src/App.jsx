@@ -183,47 +183,57 @@ function App() {
   }, [settings?.favicon, settings]);
 
   // ── Real-time settings sync ───────────────────────────────────────────────
-  // Three signals can trigger a fresh settings fetch on the frontend:
-  //   1. Polling every 10 s (cheap fallback for any signal we miss)
-  //   2. visibilitychange — when the user returns to the tab
+  // Signals that can trigger a fresh settings fetch:
+  //   1. Polling every 5 min (respects TTL 30 min — only fetches when stale)
+  //   2. visibilitychange — when the user returns to the tab (force fetch)
   //   3. BroadcastChannel 'settings-updated' (instant cross-tab signal from admin)
   //   4. window 'storage' event (fallback for older browsers)
   //
-  // On every trigger we clear the TTL cache and force a refetch so the
-  // new favicon / seoTitle / etc. show up immediately instead of waiting
-  // up to 30 minutes (the store's stale threshold).
+  // Key insight: polling uses force=false so TTL naturally gates requests.
+  // force=true is reserved for explicit triggers (visibility, admin broadcast).
+  // We NEVER call clearCache() here — it resets lastFetched=0 → isStale()=true
+  // on every poll, creating an infinite call loop (especially with 304 responses).
   useEffect(() => {
-    const fetchFresh = () => {
-      useSettingsStore.getState().clearCache();
-      useSettingsStore.getState().fetchSettings(true).catch(() => {});
-    };
+    // Polling — force=false: TTL (30 min) is the gate, not the interval (5 min)
+    const pollId = setInterval(() => {
+      useSettingsStore.getState().fetchSettings(false).catch(() => {});
+    }, 5 * 60 * 1000);
 
-    // 1. Polling fallback
-    const pollId = setInterval(fetchFresh, 10_000);
-
-    // 2. Visibility — when user returns to the tab
+    // Visibility — force=true: user returned to tab, admin may have changed settings
     const onVisibility = () => {
-      if (!document.hidden) fetchFresh();
+      if (!document.hidden) {
+        useSettingsStore.getState().clearCache('settings');
+        useSettingsStore.getState().fetchSettings(true).catch(() => {});
+      }
     };
 
-    // 3. BroadcastChannel — instant cross-tab push from admin
+    // 3. BroadcastChannel — instant cross-tab push from admin (force)
     let bc = null;
     try {
       bc = new BroadcastChannel('settings-updated');
       bc.onmessage = (e) => {
-        if (e?.data?.type === 'settings-updated') fetchFresh();
+        if (e?.data?.type === 'settings-updated') {
+          useSettingsStore.getState().clearCache('settings');
+          useSettingsStore.getState().fetchSettings(true).catch(() => {});
+        }
       };
     } catch (_) {
       // Browser doesn't support BroadcastChannel — fine, we have storage event fallback.
     }
 
-    // 4. localStorage 'storage' event — works in older browsers and as a fallback
+    // 4. localStorage 'storage' event — works in older browsers and as a fallback (force)
     const onStorage = (e) => {
-      if (e.key === 'settings-updated') fetchFresh();
+      if (e.key === 'settings-updated') {
+        useSettingsStore.getState().clearCache('settings');
+        useSettingsStore.getState().fetchSettings(true).catch(() => {});
+      }
     };
 
-    // Custom event for in-tab admin → frontend (e.g. preview iframe)
-    const onSettingsEvent = () => fetchFresh();
+    // Custom event for in-tab admin → frontend (e.g. preview iframe) (force)
+    const onSettingsEvent = () => {
+      useSettingsStore.getState().clearCache('settings');
+      useSettingsStore.getState().fetchSettings(true).catch(() => {});
+    };
 
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('storage', onStorage);

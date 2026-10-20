@@ -102,9 +102,11 @@ api.interceptors.request.use(
 );
 
 // Handle response errors
-let isLoggingOut = false;
-let lastLogoutAt = 0;
+// Dùng localStorage thay vì module-level var để guard persist khi user navigate sang trang mới
+// (bundle reload không reset localStorage).
 const LOGOUT_COOLDOWN_MS = 5000;
+const LOGOUT_KEY = '_authLogoutAt';
+const TOKEN_KEY = 'token';
 
 api.interceptors.response.use(
   (response) => response,
@@ -118,21 +120,18 @@ api.interceptors.response.use(
         return Promise.reject(error);
       }
 
-      // Chống toast spam + emit trùng khi nhiều request fail đồng thời.
+      // Chống toast spam khi nhiều request fail đồng thời.
+      // Dùng localStorage.getItem thay vì module var để persist qua page navigation.
       const now = Date.now();
-      if (!isLoggingOut && now - lastLogoutAt > LOGOUT_COOLDOWN_MS) {
-        isLoggingOut = true;
-        lastLogoutAt = now;
+      const lastAt = parseInt(localStorage.getItem(LOGOUT_KEY) || '0', 10);
+      if (now - lastAt > LOGOUT_COOLDOWN_MS) {
+        localStorage.setItem(LOGOUT_KEY, String(now));
         emitAuthError(); // → authStore.logout() thông qua authEvents bus
         toast.error('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại');
-        setTimeout(() => {
-          isLoggingOut = false;
-        }, LOGOUT_COOLDOWN_MS);
       }
 
       // Luôn dọn token để request kế tiếp không lặp lại 401.
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      localStorage.removeItem(TOKEN_KEY);
     }
     return Promise.reject(error);
   }

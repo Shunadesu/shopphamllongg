@@ -25,12 +25,15 @@ export const useSettingsStore = create(
 
       fetchSettings: async (force = false) => {
         const state = get();
+        // isStale: không fetch nếu data còn fresh (TTL 30 phút)
         if (!force && state.settings && !state.isStale('settings')) {
           return state.settings;
         }
-        set((s) => ({ loading: { ...s.loading, settings: true } }));
+        set((s) => ({ loading: { ...s.loading, settings: true }, error: null }));
         try {
           const { data } = await api.get('/settings');
+          // Luôn update lastFetched khi request thành công (kể cả 304 / data không đổi)
+          // để TTL tiếp tục ngăn các call tiếp theo
           set((s) => ({
             settings: data,
             lastFetched: { ...s.lastFetched, settings: Date.now() },
@@ -48,10 +51,9 @@ export const useSettingsStore = create(
         if (!force && Array.isArray(state.socialLinks) && state.socialLinks.length > 0 && !state.isStale('socialLinks')) {
           return state.socialLinks;
         }
-        set((s) => ({ loading: { ...s.loading, socialLinks: true } }));
+        set((s) => ({ loading: { ...s.loading, socialLinks: true }, error: null }));
         try {
           const { data } = await api.get('/social-links');
-          // Ép về array nếu API trả object
           let arr = data;
           if (!Array.isArray(arr)) {
             if (Array.isArray(arr?.socialLinks)) arr = arr.socialLinks;
@@ -76,7 +78,7 @@ export const useSettingsStore = create(
         if (!force && state.sliders.leftSliders?.length > 0 && !state.isStale('sliders')) {
           return state.sliders;
         }
-        set((s) => ({ loading: { ...s.loading, sliders: true } }));
+        set((s) => ({ loading: { ...s.loading, sliders: true }, error: null }));
         try {
           const res = await api.get('/settings/sliders');
           set((s) => ({
@@ -96,10 +98,9 @@ export const useSettingsStore = create(
         if (!force && Array.isArray(state.notifications) && state.notifications.length > 0 && !state.isStale('notifications')) {
           return state.notifications;
         }
-        set((s) => ({ loading: { ...s.loading, notifications: true } }));
+        set((s) => ({ loading: { ...s.loading, notifications: true }, error: null }));
         try {
           const res = await api.get('/settings/notifications');
-          // Ép về array
           let arr = res.data;
           if (!Array.isArray(arr)) {
             if (Array.isArray(arr?.notifications)) arr = arr.notifications;
@@ -129,15 +130,17 @@ export const useSettingsStore = create(
         lastFetched: initialFetched,
       }),
 
-      clearCache: () => set({
-        lastFetched: initialFetched,
-      }),
+      // Chỉ clear một key cụ thể (dùng khi admin update settings → invalidate key đó)
+      clearCache: (key) => set((s) => ({
+        lastFetched: key
+          ? { ...s.lastFetched, [key]: 0 }
+          : initialFetched,
+      })),
     }),
     {
       name: 'settings-storage',
       version: 4,
       migrate: (persistedState, fromVersion) => {
-        // Clear cached sliders on version migration to get new slot/type fields
         if (!persistedState) return persistedState;
         if (fromVersion < 4) {
           persistedState.sliders = { leftSliders: [], rightBanner: null };

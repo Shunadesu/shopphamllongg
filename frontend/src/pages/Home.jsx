@@ -492,7 +492,7 @@ const Home = () => {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-1.5 items-stretch">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-1.5 items-stretch">
                 {displayCategories.map((category) => {
                   // Fetch count for this category from pagination.total when displaying
                   // For now, use local group count as fallback
