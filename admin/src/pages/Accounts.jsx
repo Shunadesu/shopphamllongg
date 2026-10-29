@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
+import { format } from 'date-fns';
+import { vi } from 'date-fns/locale';
 import api, { getImageUrl } from '../utils/api';
 import toast from 'react-hot-toast';
-import { FiPlus, FiEdit2, FiTrash2, FiSearch, FiRefreshCw, FiStar, FiImage } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiSearch, FiRefreshCw, FiStar, FiImage, FiCheckSquare } from 'react-icons/fi';
 import { TableSkeleton, FilterSkeleton } from '../components/SkeletonLoader';
 import ImageGalleryModal from '../components/ImageGalleryModal';
 
@@ -14,6 +16,7 @@ export default function Accounts() {
   const [selectedSubcategory, setSelectedSubcategory] = useState('');
   const [subcategories, setSubcategories] = useState([]);
   const [statusFilter, setStatusFilter] = useState('');
+  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'sold'
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [gallery, setGallery] = useState({ urls: [], index: 0 }); // { urls: string[], index: number }
@@ -41,12 +44,17 @@ export default function Accounts() {
 
   // Use admin endpoint to get full account data
   const { data: accountsData, isLoading } = useQuery({
-    queryKey: ['admin-accounts', selectedCategory, selectedSubcategory, statusFilter, searchTerm, page, limit],
+    queryKey: ['admin-accounts', activeTab, selectedCategory, selectedSubcategory, statusFilter, searchTerm, page, limit],
     queryFn: async () => {
       let url = `/admin/accounts?page=${page}&limit=${limit}&`;
       if (selectedCategory) url += `category=${selectedCategory}&`;
       if (selectedSubcategory) url += `subcategory=${selectedSubcategory}&`;
-      if (statusFilter) url += `status=${statusFilter}&`;
+      // Tab "Đã bán" luôn gắn status=sold, bỏ qua statusFilter
+      if (activeTab === 'sold') {
+        url += `status=sold&`;
+      } else if (statusFilter) {
+        url += `status=${statusFilter}&`;
+      }
       if (searchTerm) url += `search=${encodeURIComponent(searchTerm)}&`;
       const { data } = await api.get(url);
       return data;
@@ -169,9 +177,11 @@ export default function Accounts() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-100">Tài khoản game</h1>
+          <h1 className="text-3xl font-bold text-slate-100">
+            {activeTab === 'sold' ? 'Tài khoản đã bán' : 'Tài khoản game'}
+          </h1>
           <p className="text-slate-400 mt-1">
-            Quản lý tài khoản game
+            {activeTab === 'sold' ? 'Danh sách acc đã bán và người mua' : 'Quản lý tài khoản game'}
             {accountsData?.pagination?.total != null && (
               <span className="ml-2 text-slate-500">({accountsData.pagination.total} tài khoản)</span>
             )}
@@ -181,10 +191,47 @@ export default function Accounts() {
           <button onClick={handleRefresh} className="btn-secondary flex items-center gap-2">
             <FiRefreshCw /> Làm mới
           </button>
-          <Link to="/accounts/add" className="btn-primary flex items-center gap-2">
-            <FiPlus /> Thêm tài khoản
-          </Link>
+          {activeTab === 'sold' ? (
+            <Link to="/sold-accounts" className="btn-primary flex items-center gap-2">
+              <FiCheckSquare /> Thống kê &amp; chi tiết
+            </Link>
+          ) : (
+            <Link to="/accounts/add" className="btn-primary flex items-center gap-2">
+              <FiPlus /> Thêm tài khoản
+            </Link>
+          )}
         </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex items-center gap-2 border-b border-slate-700">
+        <button
+          onClick={() => {
+            setActiveTab('all');
+            setPage(1);
+          }}
+          className={`px-4 py-2 text-sm font-medium transition-all border-b-2 -mb-px ${
+            activeTab === 'all'
+              ? 'border-cyan-400 text-cyan-400'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          Tất cả tài khoản
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab('sold');
+            setPage(1);
+          }}
+          className={`px-4 py-2 text-sm font-medium transition-all border-b-2 -mb-px flex items-center gap-2 ${
+            activeTab === 'sold'
+              ? 'border-cyan-400 text-cyan-400'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <FiCheckSquare />
+          Đã bán
+        </button>
       </div>
 
       {/* Filters */}
@@ -227,16 +274,18 @@ export default function Accounts() {
             </option>
           ))}
         </select>
-        <select
-          value={statusFilter}
-          onChange={(e) => handleFilterChange(setStatusFilter)(e.target.value)}
-          className="input-field w-44"
-        >
-          <option value="">Tất cả trạng thái</option>
-          <option value="available">Còn hàng</option>
-          <option value="sold">Đã bán</option>
-          <option value="reserved">Đang giữ</option>
-        </select>
+        {activeTab !== 'sold' && (
+          <select
+            value={statusFilter}
+            onChange={(e) => handleFilterChange(setStatusFilter)(e.target.value)}
+            className="input-field w-44"
+          >
+            <option value="">Tất cả trạng thái</option>
+            <option value="available">Còn hàng</option>
+            <option value="sold">Đã bán</option>
+            <option value="reserved">Đang giữ</option>
+          </select>
+        )}
         <select
           value={limit}
           onChange={(e) => handleLimitChange(Number(e.target.value))}
@@ -269,6 +318,8 @@ export default function Accounts() {
               <th>Hàng đợi</th>
               <th className="max-w-48">Mô tả</th>
               <th>Trạng thái</th>
+              {activeTab === 'sold' && <th>Người mua</th>}
+              {activeTab === 'sold' && <th className="w-32">Ngày bán</th>}
               <th className="w-24">Thao tác</th>
             </tr>
           </thead>
@@ -496,6 +547,33 @@ export default function Accounts() {
                     </span>
                   </td>
 
+                  {/* Người mua (chỉ hiện ở tab "Đã bán") */}
+                  {activeTab === 'sold' && (
+                    <td className="text-sm min-w-32">
+                      {account.soldTo ? (
+                        <>
+                          <div className="text-slate-200 truncate" title={account.soldTo.username}>
+                            {account.soldTo.username}
+                          </div>
+                          <div className="text-xs text-slate-500 truncate" title={account.soldTo.fullName}>
+                            {account.soldTo.fullName || '-'}
+                          </div>
+                        </>
+                      ) : (
+                        <span className="text-slate-600">Không rõ</span>
+                      )}
+                    </td>
+                  )}
+
+                  {/* Ngày bán (chỉ hiện ở tab "Đã bán") */}
+                  {activeTab === 'sold' && (
+                    <td className="text-slate-400 text-sm whitespace-nowrap">
+                      {account.soldAt
+                        ? format(new Date(account.soldAt), 'dd/MM/yyyy HH:mm', { locale: vi })
+                        : '-'}
+                    </td>
+                  )}
+
                   {/* Thao tác */}
                   <td>
                     <div className="flex gap-1">
@@ -519,7 +597,7 @@ export default function Accounts() {
               ))
             ) : (
               <tr>
-                <td colSpan="16" className="text-center text-slate-400 py-8">
+                <td colSpan={activeTab === 'sold' ? 18 : 16} className="text-center text-slate-400 py-8">
                   Chưa có tài khoản nào
                 </td>
               </tr>

@@ -10,6 +10,7 @@ import CategoryForm from './pages/CategoryForm';
 import BankAccounts from './pages/BankAccounts';
 import Accounts from './pages/Accounts';
 import AccountForm from './pages/AccountForm';
+import SoldAccounts from './pages/SoldAccounts';
 import Orders from './pages/Orders';
 import Deposits from './pages/Deposits';
 import Users from './pages/Users';
@@ -125,6 +126,7 @@ function App() {
             <Route path="categories/add" element={<CategoryForm />} />
             <Route path="categories/edit/:id" element={<CategoryForm />} />
             <Route path="accounts" element={<Accounts />} />
+            <Route path="sold-accounts" element={<SoldAccounts />} />
             <Route path="bank-accounts" element={<BankAccounts />} />
             <Route path="accounts/add" element={<AccountForm />} />
             <Route path="accounts/edit/:id" element={<AccountForm />} />

@@ -46,4 +46,7 @@ const spinHistorySchema = new mongoose.Schema({
 // Index for user history queries
 spinHistorySchema.index({ userId: 1, spinAt: -1 });
 
+// Index phục vụ tra cứu "acc này do ai trúng xổ số" (trang Tài khoản đã bán)
+spinHistorySchema.index({ accountId: 1 });
+
 export default mongoose.model('SpinHistory', spinHistorySchema);

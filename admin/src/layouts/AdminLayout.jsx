@@ -1,7 +1,8 @@
+import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import {
   FiHome, FiGrid, FiShoppingBag, FiShoppingCart,
-  FiDollarSign, FiUsers, FiImage, FiBell, FiSettings, FiLogOut, FiCreditCard, FiCalendar, FiTag, FiActivity, FiPercent
+  FiDollarSign, FiUsers, FiImage, FiBell, FiSettings, FiLogOut, FiCreditCard, FiCalendar, FiTag, FiActivity, FiPercent, FiCheckSquare, FiChevronLeft, FiChevronRight
 } from 'react-icons/fi';
 import { GiSpinningBlades } from 'react-icons/gi';
 import { useAuthStore } from '../store/authStore';
@@ -10,6 +11,14 @@ import toast from 'react-hot-toast';
 export default function AdminLayout() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    const saved = localStorage.getItem('sidebarCollapsed');
+    return saved ? JSON.parse(saved) : false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', JSON.stringify(isCollapsed));
+  }, [isCollapsed]);
 
   const handleLogout = () => {
     logout();
@@ -21,6 +30,7 @@ export default function AdminLayout() {
     { path: '/', icon: FiHome, label: 'Dashboard' },
     { path: '/categories', icon: FiGrid, label: 'Danh mục' },
     { path: '/accounts', icon: FiShoppingBag, label: 'Tài khoản' },
+    { path: '/sold-accounts', icon: FiCheckSquare, label: 'Acc đã bán' },
     { path: '/orders', icon: FiShoppingCart, label: 'Đơn hàng' },
     { path: '/deposits', icon: FiDollarSign, label: 'Nạp tiền' },
     { path: '/deposit-config', icon: FiPercent, label: 'Cấu hình nạp' },
@@ -39,13 +49,30 @@ export default function AdminLayout() {
   return (
     <div className="flex h-screen bg-slate-900">
       {/* Sidebar */}
-      <aside className="w-64 bg-slate-950 border-r border-slate-800 flex flex-col">
-        <div className="p-4 border-b border-slate-800">
-          <h1 className="text-2xl font-bold text-cyan-400">Admin Panel</h1>
-          <p className="text-sm text-slate-400 mt-1">Shopphamlong</p>
+      <aside className={`bg-slate-950 border-r border-slate-800 flex flex-col transition-all duration-300 ease-in-out ${
+        isCollapsed ? 'w-20' : 'w-64'
+      }`}>
+        <div className={`p-4 border-b border-slate-800 flex items-center justify-between ${
+          isCollapsed ? 'flex-col gap-2' : ''
+        }`}>
+          {!isCollapsed && (
+            <>
+              <div>
+                <h1 className="text-2xl font-bold text-cyan-400">Admin Panel</h1>
+                <p className="text-sm text-slate-400 mt-1">Shopphamlong</p>
+              </div>
+            </>
+          )}
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-cyan-400 rounded-lg transition-colors"
+            title={isCollapsed ? 'Mở rộng' : 'Thu gọn'}
+          >
+            {isCollapsed ? <FiChevronRight size={20} /> : <FiChevronLeft size={20} />}
+          </button>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {menuItems.map((item) => (
             <NavLink
               key={item.path}
@@ -56,33 +83,46 @@ export default function AdminLayout() {
                   isActive
                     ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30'
                     : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-                }`
+                } ${isCollapsed ? 'justify-center' : ''}`
               }
+              title={isCollapsed ? item.label : undefined}
             >
-              <item.icon className="text-lg" />
-              <span className="font-medium flex-1">{item.label}</span>
+              <item.icon className="text-lg shrink-0" />
+              {!isCollapsed && <span className="font-medium flex-1">{item.label}</span>}
             </NavLink>
           ))}
         </nav>
 
         <div className="p-4 border-t border-slate-800">
-          <div className="flex items-center gap-3 px-4 py-3 bg-slate-800 rounded-lg mb-2">
-            <div className="w-10 h-10 bg-cyan-500 rounded-full flex items-center justify-center text-slate-900 font-bold">
-              {user?.username?.charAt(0).toUpperCase()}
+          {!isCollapsed && (
+            <div className="flex items-center gap-3 px-4 py-3 bg-slate-800 rounded-lg mb-2">
+              <div className="w-10 h-10 bg-cyan-500 rounded-full flex items-center justify-center text-slate-900 font-bold shrink-0">
+                {user?.username?.charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-200 truncate">
+                  {user?.username}
+                </p>
+                <p className="text-xs text-slate-400">Administrator</p>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-200 truncate">
-                {user?.username}
-              </p>
-              <p className="text-xs text-slate-400">Administrator</p>
+          )}
+          {isCollapsed && (
+            <div className="flex justify-center mb-2">
+              <div className="w-10 h-10 bg-cyan-500 rounded-full flex items-center justify-center text-slate-900 font-bold">
+                {user?.username?.charAt(0).toUpperCase()}
+              </div>
             </div>
-          </div>
+          )}
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all duration-200 border border-blue-500/30"
+            className={`w-full flex items-center gap-3 px-4 py-3 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all duration-200 border border-blue-500/30 ${
+              isCollapsed ? 'justify-center' : ''
+            }`}
+            title={isCollapsed ? 'Đăng xuất' : undefined}
           >
             <FiLogOut />
-            <span className="font-medium">Đăng xuất</span>
+            {!isCollapsed && <span className="font-medium">Đăng xuất</span>}
           </button>
         </div>
       </aside>

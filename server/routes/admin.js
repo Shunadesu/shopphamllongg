@@ -275,11 +275,19 @@ router.delete('/categories/:id', adminAuth, async (req, res) => {
 // Get all accounts (admin)
 router.get('/accounts', adminAuth, async (req, res) => {
   try {
-    const { category, status, page = 1, limit = 20 } = req.query;
+    const { category, subcategory, status, search, page = 1, limit = 20 } = req.query;
     const query = {};
 
     if (category) query.categoryId = category;
+    if (subcategory) query.subcategoryId = subcategory;
     if (status) query.status = status;
+
+    // Tìm kiếm theo mã / tiêu đề / mô tả.
+    // (username/password được mã hóa nên không search được theo plaintext)
+    if (search) {
+      const rx = new RegExp(String(search).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      query.$or = [{ code: rx }, { title: rx }, { description: rx }];
+    }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
@@ -580,6 +588,401 @@ router.put('/accounts/:id/toggle-hot', adminAuth, async (req, res) => {
     await account.save();
     res.json({ message: account.isHot ? 'Đã đánh dấu Hot' : 'Đã bỏ đánh dấu Hot', account });
   } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// ==================== SOLD ACCOUNTS ====================
+// Theo dõi các tài khoản game đã bán: ai đã mua, thông tin acc, ngày bán,
+// bộ lọc đầy đủ và dữ liệu thống kê.
+
+// Escape các ký tự đặc biệt của regex để search không bị lỗi cú pháp.
+const escapeRegex = (str = '') => String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// Chuẩn hóa ngày từ input <input type="date"> ("2026-10-29") thành Date.
+// endOfDay = true -> lấy hết ngày (23:59:59.999).
+const parseDateFilter = (value, endOfDay = false) => {
+  if (!value) return null;
+  const date = endOfDay
+    ? new Date(`${value}T23:59:59.999`)
+    : new Date(`${value}T00:00:00.000`);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+// Cast chuỗi ID sang ObjectId.
+// Bắt buộc: aggregate() KHÔNG tự cast kiểu như find() nên nếu để nguyên string
+// thì field categoryId (ObjectId) sẽ không bao giờ match được.
+const toObjectId = (value) => {
+  if (!value) return null;
+  if (value instanceof mongoose.Types.ObjectId) return value;
+  return mongoose.Types.ObjectId.isValid(value)
+    ? new mongoose.Types.ObjectId(value)
+    : null;
+};
+
+// Pipeline dùng chung cho cả list và stats.
+// Gom tài khoản đã bán từ 2 nguồn:
+//   - order: mua trực tiếp (đơn hàng) -> GameAccount.soldTo + soldAt
+//   - spin : trúng xổ số -> không có soldTo (bug field "buyer" ngoài schema)
+//             nên lấy người mua qua SpinHistory.userId
+const buildSoldAccountPipeline = (filters = {}) => {
+  const {
+    search = '',
+    category = '',
+    subcategory = '',
+    from = null,
+    to = null,
+    minPrice = null,
+    maxPrice = null,
+    source = 'all',
+  } = filters;
+
+  const match = { status: 'sold' };
+
+  const categoryId = toObjectId(category);
+  const subcategoryId = toObjectId(subcategory);
+  if (categoryId) match.categoryId = categoryId;
+  if (subcategoryId) match.subcategoryId = subcategoryId;
+
+  if (minPrice !== null || maxPrice !== null) {
+    match.price = {};
+    if (minPrice !== null) match.price.$gte = minPrice;
+    if (maxPrice !== null) match.price.$lte = maxPrice;
+  }
+
+  const pipeline = [{ $match: match }];
+
+  // Đơn hàng liên quan (chỉ lấy đơn hoàn thành)
+  pipeline.push({
+    $lookup: {
+      from: 'orders',
+      let: { aid: '$_id' },
+      pipeline: [
+        { $match: { $expr: { $in: ['$$aid', '$items.accountId'] } } },
+        { $unwind: '$items' },
+        {
+          $match: {
+            $expr: { $eq: ['$items.accountId', '$$aid'] },
+            status: 'completed',
+          },
+        },
+      ],
+      as: 'orderDocs',
+    },
+  });
+
+  // Lịch sử xổ số (nguồn bán thứ 2)
+  pipeline.push({
+    $lookup: {
+      from: 'spinhistories',
+      let: { aid: '$_id' },
+      pipeline: [{ $match: { $expr: { $eq: ['$accountId', '$$aid'] } } }],
+      as: 'spinDocs',
+    },
+  });
+
+  // Người mua + nguồn bán
+  pipeline.push({
+    $addFields: {
+      orderInfo: { $arrayElemAt: ['$orderDocs', 0] },
+      spinInfo: { $arrayElemAt: ['$spinDocs', 0] },
+      buyerId: {
+        $ifNull: ['$soldTo', { $arrayElemAt: ['$spinDocs.userId', 0] }],
+      },
+      source: {
+        $cond: [
+          { $gt: [{ $size: '$orderDocs' }, 0] },
+          'order',
+          {
+            $cond: [
+              { $gt: [{ $size: '$spinDocs' }, 0] },
+              'spin',
+              'unknown',
+            ],
+          },
+        ],
+      },
+      soldDate: { $ifNull: ['$soldAt', '$createdAt'] },
+    },
+  });
+
+  pipeline.push({
+    $lookup: {
+      from: 'users',
+      localField: 'buyerId',
+      foreignField: '_id',
+      as: 'buyer',
+    },
+  });
+
+  pipeline.push({
+    $lookup: {
+      from: 'categories',
+      localField: 'categoryId',
+      foreignField: '_id',
+      as: 'category',
+    },
+  });
+
+  pipeline.push({
+    $lookup: {
+      from: 'categories',
+      localField: 'subcategoryId',
+      foreignField: '_id',
+      as: 'subcategory',
+    },
+  });
+
+  // Lọc theo ngày bán (dùng soldDate = soldAt fallback createdAt)
+  if (from || to) {
+    const dateMatch = {};
+    if (from) dateMatch.$gte = from;
+    if (to) dateMatch.$lte = to;
+    pipeline.push({ $match: { soldDate: dateMatch } });
+  }
+
+  // Lọc theo nguồn bán
+  if (source && source !== 'all') {
+    pipeline.push({ $match: { source } });
+  }
+
+  // Tìm kiếm: mã/tiêu đề/mô tả của acc + thông tin người mua + mã đơn hàng.
+  // (username/password của acc được mã hóa nên không search được theo plaintext)
+  if (search) {
+    const rx = new RegExp(escapeRegex(search), 'i');
+    pipeline.push({
+      $match: {
+        $or: [
+          { code: rx },
+          { title: rx },
+          { description: rx },
+          { 'orderInfo.orderNumber': rx },
+          { 'buyer.username': rx },
+          { 'buyer.fullName': rx },
+          { 'buyer.email': rx },
+          { 'buyer.phone': rx },
+        ],
+      },
+    });
+  }
+
+  return pipeline;
+};
+
+// Danh sách tài khoản đã bán (có lọc, phân trang)
+router.get('/sold-accounts', adminAuth, async (req, res) => {
+  try {
+    const {
+      search = '',
+      category = '',
+      subcategory = '',
+      from = '',
+      to = '',
+      minPrice = '',
+      maxPrice = '',
+      source = 'all',
+      sort = 'soldAt_desc',
+      page = 1,
+      limit = 20,
+    } = req.query;
+
+    const currentPage = Math.max(1, parseInt(page) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(limit) || 20));
+
+    const sortSpec = {
+      soldAt_desc: { soldDate: -1, _id: -1 },
+      soldAt_asc: { soldDate: 1, _id: 1 },
+      price_desc: { price: -1, soldDate: -1 },
+      price_asc: { price: 1, soldDate: -1 },
+    }[sort] || { soldDate: -1, _id: -1 };
+
+    const pipeline = buildSoldAccountPipeline({
+      search: search.trim(),
+      category,
+      subcategory,
+      from: parseDateFilter(from, false),
+      to: parseDateFilter(to, true),
+      minPrice: minPrice !== '' && minPrice !== null && !isNaN(Number(minPrice))
+        ? Number(minPrice)
+        : null,
+      maxPrice: maxPrice !== '' && maxPrice !== null && !isNaN(Number(maxPrice))
+        ? Number(maxPrice)
+        : null,
+      source,
+    });
+
+    pipeline.push({
+      $facet: {
+        data: [
+          { $sort: sortSpec },
+          { $skip: (currentPage - 1) * pageSize },
+          { $limit: pageSize },
+        ],
+        total: [{ $count: 'count' }],
+      },
+    });
+
+    const [result] = await GameAccount.aggregate(pipeline);
+    const rows = result?.data || [];
+    const total = result?.total?.[0]?.count || 0;
+
+    // Giải mã thông tin đăng nhập để admin xem được
+    const accounts = rows.map((acc) => {
+      const obj = { ...acc };
+      obj.username = decrypt(acc.username || '');
+      obj.password = decrypt(acc.password || '');
+      obj.password2 = acc.password2 ? decrypt(acc.password2) : '';
+      obj.category = acc.category?.[0] || null;
+      obj.subcategory = acc.subcategory?.[0] || null;
+      obj.buyer = acc.buyer?.[0] || null;
+      obj.orderInfo = acc.orderInfo || null;
+      obj.spinInfo = acc.spinInfo || null;
+      // Giá thực tế trong đơn hàng (nếu có), fallback về giá niêm yết
+      obj.soldPrice = acc.orderInfo?.items?.price ?? acc.price ?? 0;
+      obj.orderNumber = acc.orderInfo?.orderNumber || null;
+      obj.buyerSource = acc.source;
+      delete obj.orderDocs;
+      delete obj.spinDocs;
+      return obj;
+    });
+
+    res.json({
+      accounts,
+      pagination: {
+        page: currentPage,
+        limit: pageSize,
+        total,
+        pages: Math.ceil(total / pageSize),
+      },
+    });
+  } catch (error) {
+    console.error('Get sold accounts error:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// Dữ liệu thống kê tài khoản đã bán (cho KPI + biểu đồ)
+router.get('/sold-accounts/stats', adminAuth, async (req, res) => {
+  try {
+    const {
+      search = '',
+      category = '',
+      subcategory = '',
+      from = '',
+      to = '',
+      minPrice = '',
+      maxPrice = '',
+      source = 'all',
+    } = req.query;
+
+    const pipeline = buildSoldAccountPipeline({
+      search: search.trim(),
+      category,
+      subcategory,
+      from: parseDateFilter(from, false),
+      to: parseDateFilter(to, true),
+      minPrice: minPrice !== '' && minPrice !== null && !isNaN(Number(minPrice))
+        ? Number(minPrice)
+        : null,
+      maxPrice: maxPrice !== '' && maxPrice !== null && !isNaN(Number(maxPrice))
+        ? Number(maxPrice)
+        : null,
+      source,
+    });
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    pipeline.push({
+      $facet: {
+        summary: [
+          {
+            $group: {
+              _id: null,
+              totalAccounts: { $sum: 1 },
+              totalRevenue: { $sum: '$price' },
+              buyers: { $addToSet: '$buyerId' },
+            },
+          },
+        ],
+        recent: [
+          { $match: { soldDate: { $gte: thirtyDaysAgo } } },
+          { $count: 'count' },
+        ],
+        soldByDay: [
+          {
+            $group: {
+              _id: { $dateToString: { format: '%Y-%m-%d', date: '$soldDate' } },
+              count: { $sum: 1 },
+              revenue: { $sum: '$price' },
+            },
+          },
+          { $sort: { _id: 1 } },
+        ],
+        byCategory: [
+          { $unwind: '$category' },
+          {
+            $group: {
+              _id: '$category.name',
+              count: { $sum: 1 },
+              revenue: { $sum: '$price' },
+            },
+          },
+          { $sort: { revenue: -1 } },
+          { $limit: 8 },
+        ],
+        bySource: [
+          { $group: { _id: '$source', count: { $sum: 1 } } },
+        ],
+        topBuyers: [
+          { $unwind: '$buyer' },
+          {
+            $group: {
+              _id: '$buyer.username',
+              fullName: { $first: '$buyer.fullName' },
+              count: { $sum: 1 },
+              totalSpent: { $sum: '$price' },
+            },
+          },
+          { $sort: { totalSpent: -1 } },
+          { $limit: 10 },
+        ],
+      },
+    });
+
+    const [result] = await GameAccount.aggregate(pipeline);
+    const summary = result?.summary?.[0] || {};
+
+    res.json({
+      summary: {
+        totalAccounts: summary.totalAccounts || 0,
+        totalRevenue: summary.totalRevenue || 0,
+        totalBuyers: (summary.buyers || []).filter(Boolean).length,
+        recentAccounts: result?.recent?.[0]?.count || 0,
+      },
+      soldByDay: (result?.soldByDay || []).map((d) => ({
+        date: d._id,
+        count: d.count,
+        revenue: d.revenue,
+      })),
+      byCategory: (result?.byCategory || []).map((c) => ({
+        name: c._id,
+        count: c.count,
+        revenue: c.revenue,
+      })),
+      bySource: (result?.bySource || []).map((s) => ({
+        source: s._id,
+        count: s.count,
+      })),
+      topBuyers: (result?.topBuyers || []).map((b) => ({
+        username: b._id,
+        fullName: b.fullName,
+        count: b.count,
+        totalSpent: b.totalSpent,
+      })),
+    });
+  } catch (error) {
+    console.error('Get sold accounts stats error:', error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 });
@@ -1176,30 +1579,47 @@ router.get('/users/:id/purchased-accounts', adminAuth, async (req, res) => {
     }
 
     // Get all completed orders with account details
+    // Order lưu sản phẩm ở items[].accountId (không phải field accountId ở top level)
     const orders = await Order.find({
       userId,
       status: 'completed'
     })
-      .populate('accountId', 'accountName accountPassword serverName region price')
-      .sort({ completedAt: -1 })
+      .populate({
+        path: 'items.accountId',
+        populate: { path: 'categoryId', select: 'name' }
+      })
+      .sort({ createdAt: -1 })
       .lean();
 
     console.log(`✅ Admin ${req.user.username} viewed purchased accounts for user ${user.username}`);
 
+    // Mỗi đơn hàng có thể chứa nhiều tài khoản -> tách ra từng acc
+    const accounts = [];
+    orders.forEach((order) => {
+      (order.items || []).forEach((item) => {
+        const acc = item.accountId;
+        if (!acc) return;
+        accounts.push({
+          _id: acc._id,
+          orderId: order._id,
+          orderNumber: order.orderNumber,
+          code: acc.code,
+          title: acc.title,
+          category: acc.categoryId?.name || 'N/A',
+          username: acc.username ? decrypt(acc.username) : 'N/A',
+          password: acc.password ? decrypt(acc.password) : 'N/A',
+          price: item.price ?? acc.price ?? 0,
+          purchasedAt: order.createdAt,
+          deliveryStatus: order.status
+        });
+      });
+    });
+
     res.json({
       username: user.username,
       fullName: user.fullName,
-      totalPurchased: orders.length,
-      accounts: orders.map(order => ({
-        _id: order._id,
-        accountName: order.accountId?.accountName || 'N/A',
-        accountPassword: order.accountId?.accountPassword || 'N/A',
-        serverName: order.accountId?.serverName || 'N/A',
-        region: order.accountId?.region || 'N/A',
-        price: order.accountId?.price || 0,
-        purchasedAt: order.completedAt || order.createdAt,
-        deliveryStatus: order.status
-      }))
+      totalPurchased: accounts.length,
+      accounts
     });
   } catch (error) {
     console.error('Get purchased accounts error:', error);

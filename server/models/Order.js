@@ -44,4 +44,8 @@ const orderSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Index phục vụ tra cứu tài khoản theo đơn hàng (trang "Tài khoản đã bán").
+orderSchema.index({ 'items.accountId': 1 });
+orderSchema.index({ createdAt: -1 });
+
 export default mongoose.model('Order', orderSchema);

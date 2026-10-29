@@ -100,6 +100,11 @@ const gameAccountSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Index phục vụ trang "Tài khoản đã bán" của admin:
+// lọc theo trạng thái + sắp xếp theo ngày bán, và tra cứu theo người mua.
+gameAccountSchema.index({ status: 1, soldAt: -1 });
+gameAccountSchema.index({ soldTo: 1 });
+
 // Tự sinh mã cố định "TÀI KHOẢN FO4 #{globalSeq}" khi tạo mới mà không có
 // code do admin cung cấp. Sequence lấy từ Counter (atomic $inc) để đảm bảo
 // không trùng khi có nhiều request tạo tài khoản đồng thời. Tiền tố "FO4"
