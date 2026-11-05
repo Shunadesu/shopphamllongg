@@ -702,7 +702,7 @@ export default function Users() {
 
       {/* User Detail Modal */}
       {selectedUser && (
-        <div className="!mt-0 !mt-0 fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+        <div className="!mt-0 !mt-0 !mt-0 fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
           <div className="card max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <h2 className="text-2xl font-bold text-slate-100 mb-6">Thông tin người dùng</h2>
             
@@ -886,7 +886,7 @@ export default function Users() {
 
       {/* Password Change Modal */}
       {passwordChangeUser && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+        <div className="!mt-0 fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
           <div className="card max-w-md w-full">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 bg-orange-500/20 rounded-lg">
@@ -962,7 +962,7 @@ export default function Users() {
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmUser && (
-        <div className="!mt-0 fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+        <div className="!mt-0 !mt-0 fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
           <div className="card max-w-md w-full">
             <div className="space-y-4 mb-6">
               <div className="flex items-center gap-3">
@@ -1008,7 +1008,7 @@ export default function Users() {
 
       {/* Purchased Accounts Modal */}
       {purchasedAccountsData && (
-        <div className="!mt-0 fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+        <div className="!mt-0 !mt-0 fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
           <div className="card max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <div>

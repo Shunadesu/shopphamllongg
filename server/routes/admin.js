@@ -9,6 +9,7 @@ import BankAccount from '../models/BankAccount.js';
 import Slider from '../models/Slider.js';
 import Notification from '../models/Notification.js';
 import SiteSetting from '../models/SiteSetting.js';
+import FrontendCache from '../models/FrontendCache.js';
 import SpinReward from '../models/SpinReward.js';
 import SpinHistory from '../models/SpinHistory.js';
 import AdminAccessLog from '../models/AdminAccessLog.js';
@@ -1898,6 +1899,55 @@ router.put('/settings/:key', adminAuth, async (req, res) => {
     );
 
     res.json(setting);
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// ==================== FRONTEND CACHE ====================
+
+// Bump frontend cache version → mọi client đang mở sẽ xóa store zustand
+// đã persist (kể cả auth) và reload lấy dữ liệu/link mới.
+router.post('/frontend-cache/refresh', adminAuth, async (req, res) => {
+  try {
+    const version = new Date().toISOString();
+    const bumpedBy = req.user?.username || req.user?.email || req.user?._id?.toString() || 'admin';
+
+    const doc = await FrontendCache.findOneAndUpdate(
+      { key: 'frontend' },
+      {
+        key: 'frontend',
+        version,
+        bumpedAt: new Date(),
+        bumpedBy,
+      },
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
+    );
+
+    console.log(`[frontend-cache] version bumped to ${version} by ${bumpedBy}`);
+
+    res.json({
+      message: 'Đã refresh cache frontend cho toàn bộ người dùng',
+      version: doc.version,
+      bumpedAt: doc.bumpedAt,
+    });
+  } catch (error) {
+    console.error('Frontend cache refresh error:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// Trạng thái cache hiện tại (để admin UI hiển thị)
+router.get('/frontend-cache/status', adminAuth, async (req, res) => {
+  try {
+    const doc = await FrontendCache.findOne({ key: 'frontend' });
+
+    res.set('Cache-Control', 'no-store');
+    res.json({
+      version: doc?.version || '',
+      bumpedAt: doc?.bumpedAt || null,
+      bumpedBy: doc?.bumpedBy || '',
+    });
   } catch (error) {
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }

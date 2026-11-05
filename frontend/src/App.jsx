@@ -12,6 +12,7 @@ import { useThemeStore } from './store/themeStore';
 import { useSettingsStore } from './store/data/settingsStore';
 import { useCartStore } from './store/cartStore';
 import { getImageUrl } from './utils/api';
+import { syncCacheVersion, stripCacheBustParam } from './utils/cacheVersion';
 
 // Pages — Home is lazy-loaded to reduce initial bundle
 const Home = lazy(() => import('./pages/Home'));
@@ -262,6 +263,58 @@ function App() {
     useSettingsStore.getState().fetchSliders().catch(() => {});
     useSettingsStore.getState().fetchNotifications().catch(() => {});
     useCartStore.getState().fetchCart().catch(() => {});
+  }, []);
+
+  // ── Frontend cache version sync ──────────────────────────────────────────
+  // Sau mỗi lần deploy, admin bấm "Refresh cache toàn bộ người dùng" ở trang
+  // Cài đặt → server tăng version. Client ở đây poll thấy version lệch →
+  // xóa các store zustand đã persist (kể cả auth) → hard-reload để lấy
+  // bundle + dữ liệu/link mới.
+  //
+  //   1. Khi mount
+  //   2. Mỗi 2 phút (tab mở lâu)
+  //   3. visibilitychange (user quay lại tab)
+  //   4. BroadcastChannel 'frontend-cache-refresh' (admin cùng trình duyệt)
+  useEffect(() => {
+    // Dọn tham số ?cv= để URL sạch sau khi reload
+    stripCacheBustParam();
+
+    let cancelled = false;
+
+    const check = async () => {
+      if (cancelled) return;
+      try {
+        const { changed } = await syncCacheVersion();
+        // changed = true → đang hard-reload, không cần làm gì thêm
+      } catch (_) {
+        // im lặng: lỗi mạng sẽ thử lại ở lần poll sau
+      }
+    };
+
+    check();
+
+    const pollId = setInterval(check, 2 * 60 * 1000);
+
+    const onVisibility = () => {
+      if (!document.hidden) check();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    // BroadcastChannel — admin bấm nút refresh ở cùng origin thì reload ngay
+    let bc = null;
+    try {
+      bc = new BroadcastChannel('frontend-cache-refresh');
+      bc.onmessage = () => check();
+    } catch (_) {
+      // Trình duyệt không hỗ trợ BroadcastChannel — bỏ qua, vẫn có poll 2' phút
+    }
+
+    return () => {
+      cancelled = true;
+      clearInterval(pollId);
+      document.removeEventListener('visibilitychange', onVisibility);
+      if (bc) bc.close();
+    };
   }, []);
 
   // Apply admin default theme on first load (only if user has no preference)

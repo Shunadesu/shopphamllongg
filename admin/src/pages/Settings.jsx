@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api, { getImageUrl } from '../utils/api';
 import toast from 'react-hot-toast';
-import { FiSave, FiPhone, FiFacebook, FiMail, FiImage, FiUpload, FiLink, FiEdit2, FiTrash2, FiSearch, FiGlobe, FiSun, FiMoon } from 'react-icons/fi';
+import { FiSave, FiPhone, FiFacebook, FiMail, FiImage, FiUpload, FiLink, FiEdit2, FiTrash2, FiSearch, FiGlobe, FiSun, FiMoon, FiRefreshCw } from 'react-icons/fi';
 import { FormSkeleton } from '../components/SkeletonLoader';
 
 // Strip the leading base URL (e.g. "https://phamlongfco.online") from a
@@ -54,6 +54,41 @@ export default function Settings() {
     queryFn: async () => {
       const { data } = await api.get('/settings');
       return data;
+    },
+  });
+
+  // Trạng thái cache frontend (version hiện tại + thời điểm refresh gần nhất)
+  const { data: cacheStatus, isLoading: isLoadingCache } = useQuery({
+    queryKey: ['frontend-cache-status'],
+    queryFn: async () => {
+      const { data } = await api.get('/admin/frontend-cache/status');
+      return data;
+    },
+    refetchInterval: 30000,
+  });
+
+  const refreshCacheMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post('/admin/frontend-cache/refresh');
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries(['frontend-cache-status']);
+      toast.success(data?.message || 'Đã refresh cache frontend');
+
+      // Báo hiệu cho các tab frontend đang mở trong cùng trình duyệt
+      // (chỉ có tác dụng cùng origin; kênh chính vẫn là client poll server).
+      const ts = Date.now().toString();
+      try {
+        const bc = new BroadcastChannel('frontend-cache-refresh');
+        bc.postMessage({ type: 'frontend-cache-refresh', ts, version: data?.version });
+        bc.close();
+      } catch (_) {}
+      localStorage.setItem('frontend-cache-refresh', ts);
+      window.dispatchEvent(new Event('frontend-cache-refresh'));
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Có lỗi xảy ra');
     },
   });
 
@@ -452,6 +487,7 @@ export default function Settings() {
     { id: 'social', label: 'Mạng xã hội', icon: FiLink },
     { id: 'logo', label: 'Logo', icon: FiImage },
     { id: 'seo', label: 'SEO & Favicon', icon: FiGlobe },
+    { id: 'cache', label: 'Cache', icon: FiRefreshCw },
   ];
 
   return (
@@ -1041,6 +1077,67 @@ export default function Settings() {
               {saveSeoMutation.isPending ? 'Đang lưu...' : 'Lưu cấu hình SEO'}
             </button>
           </form>
+        </div>
+      )}
+
+      {/* Frontend Cache Settings */}
+      {activeTab === 'cache' && (
+        <div className="card">
+          <h2 className="text-xl font-bold text-slate-100 mb-2 flex items-center gap-2">
+            <FiRefreshCw />
+            Cache frontend
+          </h2>
+          <p className="text-slate-400 mb-6">
+            Sau mỗi lần deploy, các store zustand đã lưu trong localStorage của người dùng vẫn giữ dữ liệu cũ
+            (banner, social link, thông báo) khiến site hiện bản cũ. Bấm nút bên dưới để buộc toàn bộ người dùng
+            xóa cache và tải lại bản mới ngay.
+          </p>
+
+          {/* Trạng thái hiện tại */}
+          <div className="bg-slate-800 rounded-lg p-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-slate-400 mb-1">Version cache hiện tại</p>
+                <p className="text-sm text-slate-100 font-mono break-all">
+                  {isLoadingCache ? 'Đang tải...' : (cacheStatus?.version || 'Chưa có version')}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400 mb-1">Lần refresh gần nhất</p>
+                <p className="text-sm text-slate-100">
+                  {cacheStatus?.bumpedAt
+                    ? new Date(cacheStatus.bumpedAt).toLocaleString('vi-VN')
+                    : 'Chưa có'}
+                </p>
+                {cacheStatus?.bumpedBy && (
+                  <p className="text-xs text-slate-500 mt-1">bởi {cacheStatus.bumpedBy}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Cảnh báo tác động */}
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 mb-6">
+            <p className="text-sm text-amber-300 font-medium mb-2">Khi bấm nút, các dữ liệu sau ở máy người dùng sẽ bị xóa:</p>
+            <ul className="text-sm text-slate-300 space-y-1 list-disc list-inside">
+              <li>Cài đặt, banner, social link, thông báo (settings-storage)</li>
+              <li>Thông tin ngân hàng & top depositor (deposit-storage)</li>
+              <li>Giỏ hàng trên giao diện (cart-storage)</li>
+              <li>Phiên đăng nhập (auth-storage) — người dùng sẽ phải đăng nhập lại</li>
+            </ul>
+            <p className="text-xs text-slate-400 mt-3">
+              Người dùng đang mở website sẽ tự động reload trong khoảng 2 phút; các tab đã mở sẵn cập nhật ngay.
+            </p>
+          </div>
+
+          <button
+            onClick={() => refreshCacheMutation.mutate()}
+            disabled={refreshCacheMutation.isPending}
+            className="btn-primary"
+          >
+            <FiRefreshCw className={`inline mr-2 ${refreshCacheMutation.isPending ? 'animate-spin' : ''}`} />
+            {refreshCacheMutation.isPending ? 'Đang refresh...' : 'Refresh cache toàn bộ người dùng'}
+          </button>
         </div>
       )}
     </div>

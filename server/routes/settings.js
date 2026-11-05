@@ -2,6 +2,7 @@ import express from 'express';
 import SiteSetting from '../models/SiteSetting.js';
 import Notification from '../models/Notification.js';
 import Slider from '../models/Slider.js';
+import FrontendCache from '../models/FrontendCache.js';
 
 const router = express.Router();
 
@@ -71,6 +72,26 @@ router.get('/notifications', async (req, res) => {
     res.json(notifications);
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+});
+
+// Get current frontend cache version (public).
+//
+// Frontend poll endpoint này để biết admin đã "refresh cache" hay chưa.
+// Phải trả `Cache-Control: no-store` để CDN/proxy không cache lại response,
+// nếu không client sẽ so sánh với version cũ và không bao giờ reload.
+router.get('/frontend-cache/version', async (req, res) => {
+  try {
+    const doc = await FrontendCache.findOne({ key: 'frontend' });
+
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.json({
+      version: doc?.version || '',
+      bumpedAt: doc?.bumpedAt || null,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 });
 
