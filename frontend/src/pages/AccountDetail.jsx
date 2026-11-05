@@ -13,7 +13,7 @@ import { AccountDetailSkeleton, RelatedAccountsSkeleton } from '../components/Sk
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Pagination, Zoom } from 'swiper/modules';
 import BuyNowModal from '../components/BuyNowModal';
-import api, { getImageUrl } from '../utils/api';
+import api, { getImageUrl, getResponsiveImageUrl } from '../utils/api';
 import LazyImage from '../components/LazyImage';
 import 'swiper/css';
 import 'swiper/css/pagination';
@@ -226,6 +226,8 @@ const AccountDetail = ({ onOpenAuth }) => {
                 skeletonClassName="rounded-lg"
                 imgStyle={{ cursor: 'zoom-in' }}
                 onClick={() => setLightboxOpen(true)}
+                srcSet={getResponsiveImageUrl(heroImage, [640, 1280, 1920])}
+                sizes="(max-width: 1024px) 100vw, 50vw"
               />
 
               {/* Zoom hint */}
@@ -263,6 +265,8 @@ const AccountDetail = ({ onOpenAuth }) => {
                       alt={`Preview ${idx + 1}`}
                       className="w-full h-16 object-cover"
                       skeletonClassName="rounded"
+                      srcSet={getResponsiveImageUrl(img, [320, 640])}
+                      sizes="(max-width: 1024px) 25vw, 160px"
                     />
                     <div className="absolute top-0.5 left-0.5 bg-black/60 text-white text-[10px] font-bold px-1 py-0.5 rounded leading-none">
                       {idx + 1}

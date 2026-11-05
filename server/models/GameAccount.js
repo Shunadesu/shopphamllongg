@@ -105,6 +105,19 @@ const gameAccountSchema = new mongoose.Schema({
 gameAccountSchema.index({ status: 1, soldAt: -1 });
 gameAccountSchema.index({ soldTo: 1 });
 
+// Index phục vụ trang danh sách tài khoản (public).
+// Query lọc theo status (+ categoryId) rồi sort theo createdAt hoặc price.
+// Không có index này thì MongoDB phải scan toàn bộ collection rồi sort
+// in-memory — rất chậm khi collection lớn.
+//
+// Lưu ý: index { price: 1 } phục vụ được cả sort tăng lẫn giảm (MongoDB
+// duyệt index theo chiều ngược khi cần).
+gameAccountSchema.index({ status: 1, createdAt: -1 });
+gameAccountSchema.index({ status: 1, price: 1 });
+gameAccountSchema.index({ status: 1, categoryId: 1, createdAt: -1 });
+gameAccountSchema.index({ status: 1, categoryId: 1, price: 1 });
+gameAccountSchema.index({ subcategoryId: 1, status: 1 });
+
 // Tự sinh mã cố định "TÀI KHOẢN FO4 #{globalSeq}" khi tạo mới mà không có
 // code do admin cung cấp. Sequence lấy từ Counter (atomic $inc) để đảm bảo
 // không trùng khi có nhiều request tạo tài khoản đồng thời. Tiền tố "FO4"

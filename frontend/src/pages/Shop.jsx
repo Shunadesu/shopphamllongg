@@ -10,6 +10,7 @@ import { ShopSkeleton, AccountCardSkeleton } from '../components/SkeletonLoader'
 import { FiSearch, FiTag, FiShoppingCart, FiZap, FiChevronRight, FiChevronLeft } from 'react-icons/fi';
 import BuyNowModal from '../components/BuyNowModal';
 import api from '../utils/api';
+import { getResponsiveImageUrl } from '../utils/api';
 import LazyImage from '../components/LazyImage';
 
 // Account Card Component (từ Home.jsx)
@@ -25,6 +26,8 @@ const AccountCard = ({ account, onAddToCart, onBuyNow, addToCartPending }) => {
             alt={account.title}
             className="w-full h-40 sm:h-48 object-cover rounded-lg mb-3"
             skeletonClassName="rounded-lg"
+            srcSet={getResponsiveImageUrl(account.images?.[0], [320, 640, 960])}
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 320px"
           />
           {/* Sold Badge */}
           {account.status === 'sold' && (

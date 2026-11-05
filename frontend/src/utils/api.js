@@ -17,17 +17,23 @@ export const getImageUrl = (path) => {
 
 // Generate responsive image srcSet string
 // widths: array of widths in pixels (e.g. [320, 640, 960])
-// NOTE: This assumes the server supports ?w= query param for resizing.
-// If not supported, the browser will ignore extra srcSet entries and use src.
+//
+// Server (server/routes/media.js) resize ảnh theo query `?w=<width>` và
+// trả về WebP. Chỉ áp dụng cho ảnh nằm trong /uploads (ảnh admin upload)
+// — ảnh từ domain ngoài (youtube, CDN khác...) không đi qua server này
+// nên giữ nguyên URL, tránh gắn query lạ làm hỏng cache phía bên ngoài.
 export const getResponsiveImageUrl = (path, widths = [320, 640, 960]) => {
   if (!path) return '';
   const base = getImageUrl(path);
   if (!base) return '';
-  // If already a full external URL that doesn't support resize params, skip srcSet
-  if (base.startsWith('https://img.youtube.com') || base.startsWith('http://')) {
-    return base;
-  }
-  return widths.map((w) => `${base}?w=${w} ${w}w`).join(', ');
+
+  // Chỉ resize được ảnh do server phục vụ.
+  const isLocal = path.startsWith('/uploads/') || path.includes('/uploads/');
+  if (!isLocal) return base;
+
+  // Giữ nguyên query string sẵn có (vd. ?t=123) thay vì ghi đè.
+  const separator = base.includes('?') ? '&' : '?';
+  return widths.map((w) => `${base}${separator}w=${w} ${w}w`).join(', ');
 };
 
 // Export imageBaseURL để sử dụng ở nơi khác

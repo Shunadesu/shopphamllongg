@@ -12,9 +12,8 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import mongoose from 'mongoose';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import DepositRequest from './models/DepositRequest.js';
+import GameAccount from './models/GameAccount.js';
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -26,6 +25,7 @@ import adminRoutes from './routes/admin.js';
 import adminAccessLog from './middleware/adminAccessLog.js';
 import settingsRoutes from './routes/settings.js';
 import uploadRoutes from './routes/upload.js';
+import mediaRoutes from './routes/media.js';
 import sitemapRoutes from './routes/sitemap.js';
 import socialLinksRoutes from './routes/socialLinks.js';
 import spinRoutes from './routes/spin.js';
@@ -34,9 +34,6 @@ import adminSpinRoutes from './routes/adminSpin.js';
 import sepayWebhook from './routes/sepayWebhook.js';
 import { initTelegramBot } from './services/telegramBot.js';
 import { startDepositCleanup } from './services/depositCleanup.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -50,8 +47,10 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Static files
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Static files — ảnh trong uploads được phục vụ qua mediaRoutes để hỗ trợ
+// resize on-the-fly (?w=320|640|960|1280|1920 → WebP) + cache dài hạn.
+// mediaRoutes cũng phục vụ file gốc khi không có tham số `w`.
+app.use('/uploads', mediaRoutes);
 
 // Trust proxy (for rate limiting behind reverse proxy)
 app.set('trust proxy', 1);
@@ -117,6 +116,18 @@ mongoose.connect(process.env.MONGODB_URI)
       );
     } catch (fixErr) {
       console.error('⚠️ [sepayIndexFix] Failed (non-fatal, server continues):', fixErr.message);
+    }
+
+    // === Sync indexes cho GameAccount ===
+    // Query list tài khoản lọc theo status/categoryId và sort theo
+    // createdAt/price. Không có index tương ứng thì MongoDB phải scan toàn bộ
+    // collection rồi sort in-memory. syncIndexes() tạo các index đó (và
+    // loại bỏ index không còn trong schema).
+    try {
+      await GameAccount.syncIndexes();
+      console.log('🔧 [gameAccountIndexFix] Indexes synced.');
+    } catch (idxErr) {
+      console.error('⚠️ [gameAccountIndexFix] Failed (non-fatal):', idxErr.message);
     }
   })
   .catch((err) => console.error('❌ MongoDB connection error:', err));

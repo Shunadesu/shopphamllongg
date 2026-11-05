@@ -124,13 +124,17 @@ const Home = () => {
       images.push(sliders.rightBanner.image);
     }
     images.forEach((img) => {
-      const resolved = getResponsiveImageUrl(img, [640, 1280]);
-      // Extract base URL without srcSet widths for preload (use largest width)
-      const baseUrl = resolved.split(' ')[0];
+      const srcSet = getResponsiveImageUrl(img, [640, 1280, 1920]);
+      if (!srcSet) return;
       const link = document.createElement('link');
       link.rel = 'preload';
       link.as = 'image';
-      link.href = baseUrl;
+      // imagesrcset + imagesizes để browser chọn đúng biến thể theo viewport,
+      // tránh tải thêm 1 lần nữa ở <img srcset>.
+      link.setAttribute('imagesrcset', srcSet);
+      link.setAttribute('imagesizes', '(max-width: 768px) 100vw, 33vw');
+      // href = biến thể lớn nhất (fallback cho browser không hỗ trợ imagesrcset)
+      link.href = srcSet.split(', ').pop().split(' ')[0];
       document.head.appendChild(link);
     });
   }, [sliders]);

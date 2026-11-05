@@ -6,6 +6,17 @@ import { applyPromotionPricing, applyPromotionPricingSingle } from '../utils/pri
 
 const router = express.Router();
 
+// Trên 500 bản ghi thì không cần đếm tổng (trang Home gọi limit=1000 và
+// tự phân trang phía client). Bỏ qua countDocuments giúp tiết kiệm 1 lần
+// quét index cho mỗi request.
+const SKIP_COUNT_LIMIT = 500;
+
+// Projection cho endpoint list: chỉ trả về các field mà UI thực sự dùng.
+// `images` bị cắt còn ảnh đầu tiên (card chỉ hiển thị 1 ảnh).
+const LIST_FIELDS =
+  'title description code rank server price originalPrice adminDiscountPercent ' +
+  'teamValue bp status categoryId subcategoryId images';
+
 // Get all accounts with filters
 router.get('/', async (req, res) => {
   try {
@@ -68,14 +79,26 @@ router.get('/', async (req, res) => {
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
+    const limitNum = parseInt(limit);
 
-    const accounts = await GameAccount.find(query)
+    // Chạy song song find + count thay vì tuần tự. `.lean()` trả về object
+    // thuần nên bỏ qua bước hydrate document của Mongoose (tiết kiệm rõ rệt
+    // khi limit lớn).
+    const accountsPromise = GameAccount.find(query)
       .populate('categoryId', 'name slug parentId')
       .populate('subcategoryId', 'name slug parentId')
-      .select('-username -password') // Hide credentials
+      .select(LIST_FIELDS) // Chỉ trả field UI cần (đồng thời ẩn username/password/password2)
       .sort(sortOptions)
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(limitNum)
+      .lean();
+
+    const countPromise =
+      limitNum >= SKIP_COUNT_LIMIT
+        ? Promise.resolve(null)
+        : GameAccount.countDocuments(query);
+
+    const [accounts, total] = await Promise.all([accountsPromise, countPromise]);
 
     // Áp dụng promotion pricing cho tất cả accounts
     const accountsWithPromotion = await applyPromotionPricing(accounts);
@@ -85,18 +108,20 @@ router.get('/', async (req, res) => {
     const mappedAccounts = accountsWithPromotion.map(acc => {
       const accObj = typeof acc.toObject === 'function' ? acc.toObject() : acc;
       accObj.category = accObj.subcategoryId || accObj.categoryId;
+      // Card chỉ hiển thị ảnh đầu tiên → cắt bớt ảnh dư khỏi payload.
+      if (Array.isArray(accObj.images) && accObj.images.length > 1) {
+        accObj.images = accObj.images.slice(0, 1);
+      }
       return accObj;
     });
-
-    const total = await GameAccount.countDocuments(query);
 
     res.json({
       accounts: mappedAccounts,
       pagination: {
         page: parseInt(page),
-        limit: parseInt(limit),
+        limit: limitNum,
         total,
-        pages: Math.ceil(total / parseInt(limit))
+        pages: total === null ? 1 : Math.ceil(total / limitNum)
       }
     });
   } catch (error) {

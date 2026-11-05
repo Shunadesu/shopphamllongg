@@ -76,8 +76,11 @@ export default function LazyImage({
   }, [eager, rootMargin]);
 
   // Determine final loading attribute
-  // Use eager only when inView is already true (eager images); lazy images rely on src injection
-  const loadingAttr = eager ? 'eager' : undefined;
+  // - eager images: load ngay (hero/banner above-the-fold)
+  // - lazy images: giao cho trình duyệt tải khi sắp lọt khung nhìn.
+  //   (Vẫn có IntersectionObserver phía trên để chủ động gắn src, nhưng
+  //   loading="lazy" giúp trình duyệt ưu tiên đúng thứ tự tải.)
+  const loadingAttr = eager ? 'eager' : 'lazy';
 
   // Build image className and style based on objectFit
   const imgClassName = objectFit === 'contain'

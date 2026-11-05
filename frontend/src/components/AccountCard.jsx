@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import LazyImage from './LazyImage';
+import { getResponsiveImageUrl } from '../utils/api';
 
 const AccountCard = ({ account, onBuyNow }) => {
   return (
@@ -13,6 +14,8 @@ const AccountCard = ({ account, onBuyNow }) => {
             className="w-full h-full"
             objectFit="contain"
             skeletonClassName="rounded-lg"
+            srcSet={getResponsiveImageUrl(account.images?.[0], [320, 640, 960])}
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 320px"
           />
           {account.status === 'sold' && (
             <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
