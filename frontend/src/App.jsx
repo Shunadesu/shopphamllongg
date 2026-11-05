@@ -1,4 +1,4 @@
-import { Routes, Route, useLocation, Navigate, useParams } from 'react-router-dom';
+import { Routes, Route, useLocation, useNavigate, Navigate, useParams } from 'react-router-dom';
 import { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -13,6 +13,8 @@ import { useSettingsStore } from './store/data/settingsStore';
 import { useCartStore } from './store/cartStore';
 import { getImageUrl } from './utils/api';
 import { syncCacheVersion, stripCacheBustParam } from './utils/cacheVersion';
+import { takePendingAuthRedirect } from './utils/pendingAuthRedirect';
+import { useAuthStore } from './store/authStore';
 
 // Pages — Home is lazy-loaded to reduce initial bundle
 const Home = lazy(() => import('./pages/Home'));
@@ -54,6 +56,7 @@ function RedirectWithParams({ paramName, view = 'order-detail', extraParams = {}
 }
 
 function App() {
+  const navigate = useNavigate();
   const applyDefaultTheme = useThemeStore((s) => s.applyDefault);
   const settings = useSettingsStore((s) => s.settings);
 
@@ -353,6 +356,25 @@ function App() {
     return () => window.removeEventListener('openAuthDrawer', handleOpenAuthDrawer);
   }, [handleOpenAuth]);
 
+  // ── Redirect sau khi đăng nhập ────────────────────────────────────────────
+  // Khi user bấm một link yêu cầu đăng nhập (vd. "Nạp tiền" ở bottom bar),
+  // ta ghi nhớ đường dẫn đích. Sau khi đăng nhập thành công → chuyển tới đó.
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const wasAuthenticatedRef = useRef(isAuthenticated);
+
+  useEffect(() => {
+    const wasAuthenticated = wasAuthenticatedRef.current;
+    wasAuthenticatedRef.current = isAuthenticated;
+
+    // Chỉ redirect khi trạng thái chuyển từ chưa → đã đăng nhập.
+    if (!isAuthenticated || wasAuthenticated) return;
+
+    const pendingPath = takePendingAuthRedirect();
+    if (pendingPath) {
+      navigate(pendingPath);
+    }
+  }, [isAuthenticated, navigate]);
+
   return (
     <div className="min-h-screen flex flex-col">
       <ScrollToTop />
@@ -443,7 +465,7 @@ function App() {
 
       <Footer />
       <ContactFixed />
-      <BottomStatusBar />
+      <BottomStatusBar onOpenAuth={handleOpenAuth} />
       <NotificationModal />
     </div>
   );

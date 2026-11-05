@@ -6,6 +6,7 @@ import { useThemeStore } from '../store/themeStore';
 import { useSettings } from '../hooks/useSettings';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { useUserStore } from '../store/data/userStore';
+import { useProtectedNavigate } from '../hooks/useProtectedNavigate';
 import AuthDrawer from './AuthDrawer';
 import CartDrawer from './CartDrawer';
 import LazyImage from './LazyImage';
@@ -36,6 +37,17 @@ const Header = ({ onOpenAuth, onOpenCart, isAuthOpen, isCartOpen, onCloseAuth, o
 
   // Fetch settings for logo
   const { data: settings } = useSettings();
+
+  // Chặn điều hướng tới trang nạp tiền khi chưa đăng nhập:
+  // chỉ mở drawer đăng nhập, KHÔNG đổi URL.
+  const { guardClick } = useProtectedNavigate(onOpenAuth);
+  const guardDepositClick = guardClick('/profile?view=deposit');
+
+  // Bản dùng trong mobile menu: vừa đóng menu vừa chặn điều hướng.
+  const handleMobileDepositClick = (event) => {
+    setShowMobileMenu(false);
+    guardDepositClick(event);
+  };
 
   // Close menus on route change
   useEffect(() => {
@@ -104,6 +116,7 @@ const Header = ({ onOpenAuth, onOpenCart, isAuthOpen, isCartOpen, onCloseAuth, o
               
               <Link
                 to="/profile?view=deposit"
+                onClick={guardDepositClick}
                 className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${navLinkColor(location.pathname === '/profile' && location.search.includes('view=deposit'))}`}
               >
                 Nạp ATM
@@ -169,6 +182,7 @@ const Header = ({ onOpenAuth, onOpenCart, isAuthOpen, isCartOpen, onCloseAuth, o
                   </div>
                   <Link
                     to="/profile?view=deposit"
+                    onClick={guardDepositClick}
                     className="p-1.5 bg-primary hover:bg-primary-dark text-white rounded-md transition-colors"
                     title="Nạp tiền"
                   >
@@ -321,7 +335,7 @@ const Header = ({ onOpenAuth, onOpenCart, isAuthOpen, isCartOpen, onCloseAuth, o
                     </div>
                     <Link
                       to="/profile?view=deposit"
-                      onClick={() => setShowMobileMenu(false)}
+                      onClick={handleMobileDepositClick}
                       className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors font-medium"
                     >
                       <FiPlus className="w-4 h-4" />
@@ -343,7 +357,7 @@ const Header = ({ onOpenAuth, onOpenCart, isAuthOpen, isCartOpen, onCloseAuth, o
                 <Link
                   to="/profile?view=deposit"
                   className={`px-4 py-2 rounded-lg transition-colors ${mobileLinkColor()}`}
-                  onClick={() => setShowMobileMenu(false)}
+                  onClick={handleMobileDepositClick}
                 >
                   Nạp ATM
                 </Link>

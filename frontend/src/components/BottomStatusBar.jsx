@@ -4,6 +4,7 @@ import { FiHome, FiUser, FiCreditCard, FiUserCheck } from 'react-icons/fi';
 import api from '../utils/api';
 import { useAuthStore } from '../store/authStore';
 import { useTopDepositors } from '../hooks/useDeposits';
+import { useProtectedNavigate } from '../hooks/useProtectedNavigate';
 
 // Mock data for when there are no real deposits - full names
 const MOCK_TOP_DEPOSITORS = [
@@ -24,11 +25,15 @@ const MOCK_TOP_DEPOSITORS = [
   { fullName: 'Võ Thanh Sơn', totalAmount: 280000, isMock: true },
 ];
 
-const BottomStatusBar = () => {
+const BottomStatusBar = ({ onOpenAuth }) => {
   const [isOnline, setIsOnline] = useState(false);
   const location = useLocation();
   const { isAuthenticated, user } = useAuthStore();
   const { data: depositorsData } = useTopDepositors();
+
+  // Chặn điều hướng tới /profile?view=deposit khi chưa đăng nhập:
+  // chỉ mở drawer đăng nhập, KHÔNG đổi URL (tránh màn hình trắng + URL sai).
+  const { guardClick } = useProtectedNavigate(onOpenAuth);
 
   // Check API connection
   useEffect(() => {
@@ -77,7 +82,13 @@ const BottomStatusBar = () => {
   // Navigation items for mobile
   const navItems = [
     { path: '/', icon: FiHome, label: 'Trang chủ' },
-    { path: '/profile?view=deposit', icon: FiCreditCard, label: 'Nạp tiền' },
+    {
+      path: '/profile?view=deposit',
+      icon: FiCreditCard,
+      label: 'Nạp tiền',
+      // Chưa đăng nhập → chỉ mở drawer, không đổi URL.
+      onClick: guardClick('/profile?view=deposit'),
+    },
     { path: user ? '/profile' : '#', icon: FiUserCheck, label: user?.fullName || 'Đăng nhập' }
   ];
 
@@ -160,6 +171,7 @@ const BottomStatusBar = () => {
               <Link
                 key={item.path}
                 to={item.path === '#' ? (isAuthenticated ? '/profile' : '/') : item.path}
+                onClick={item.onClick}
                 className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
                   active 
                     ? 'text-primary' 
