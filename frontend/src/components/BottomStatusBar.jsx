@@ -192,22 +192,30 @@ const BottomStatusBar = ({ onOpenAuth }) => {
           overflow: hidden;
           white-space: nowrap;
         }
-        
+
         .marquee-content {
           display: inline-block;
           animation: marquee 30s linear infinite;
+          will-change: transform;
         }
-        
+
         .marquee-content:hover {
           animation-play-state: paused;
         }
-        
+
         @keyframes marquee {
           0% {
             transform: translateX(0);
           }
           100% {
             transform: translateX(-50%);
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .marquee-content {
+            animation: none;
+            will-change: auto;
           }
         }
       `}</style>

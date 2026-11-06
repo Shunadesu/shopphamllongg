@@ -364,13 +364,20 @@ const Shop = () => {
   };
 
   // Filter accounts by selected category/subcategory
+  // Khi chọn danh mục cha → lấy cả tài khoản nằm trong các danh mục con
+  // (giống cách trang Home group: danh mục hiệu dụng = subcategory ?? category).
   const filteredAccounts = useMemo(() => {
     if (selectedSubcategoryId) {
       return accounts.filter(account => account.category?._id === selectedSubcategoryId);
     }
     if (selectedCategoryId === 'all') return accounts;
-    return accounts.filter(account => account.category?._id === selectedCategoryId);
-  }, [accounts, selectedCategoryId, selectedSubcategoryId]);
+
+    const subcategoryIds = selectedCategory?.subcategories?.map(sub => sub._id) || [];
+    return accounts.filter(account => {
+      const catId = account.category?._id;
+      return catId === selectedCategoryId || subcategoryIds.includes(catId);
+    });
+  }, [accounts, selectedCategoryId, selectedSubcategoryId, selectedCategory]);
 
   // Group accounts by category
   const accountsByCategory = useMemo(() => {

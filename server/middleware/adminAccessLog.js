@@ -1,4 +1,5 @@
 import AdminAccessLog from '../models/AdminAccessLog.js';
+import { getClientIp } from '../utils/clientIp.js';
 
 // Paths to skip logging
 const SKIP_PATHS = ['/api/health'];
@@ -9,16 +10,6 @@ const SENSITIVE_KEYS = ['password', 'token', 'secret', 'key', 'authorization', '
 function sanitizeBody(body) {
   if (!body || typeof body !== 'object') return [];
   return Object.keys(body).filter(key => !SENSITIVE_KEYS.includes(key.toLowerCase()));
-}
-
-function getClientIp(req) {
-  return (
-    req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-    req.headers['x-real-ip'] ||
-    req.ip ||
-    req.socket?.remoteAddress ||
-    ''
-  );
 }
 
 export function adminAccessLog(req, res, next) {

@@ -43,21 +43,15 @@ export default function PromotionForm() {
     },
   });
 
-  // Fetch categories
+  // Fetch categories (danh mục cha, kèm mảng `subcategories` bên trong).
+  // Endpoint /admin/categories chỉ trả về danh mục gốc + danh mục con lồng
+  // bên trong → danh mục con phải lấy từ `cat.subcategories`, không lấy được
+  // bằng cách filter `cat.parentId` (danh mục con không nằm ở top level).
   const { data: categories } = useQuery({
     queryKey: ['categories-all'],
     queryFn: async () => {
       const { data } = await api.get('/admin/categories');
       return data.filter(cat => !cat.parentId); // Only parent categories
-    },
-  });
-
-  // Fetch subcategories
-  const { data: subcategories } = useQuery({
-    queryKey: ['subcategories-all'],
-    queryFn: async () => {
-      const { data } = await api.get('/admin/categories');
-      return data.filter(cat => cat.parentId); // Only subcategories
     },
   });
 
@@ -145,10 +139,13 @@ export default function PromotionForm() {
     label: cat.name,
   })) || [];
 
-  const subcategoryOptions = subcategories?.map(sub => ({
-    value: sub._id,
-    label: `${sub.name} (${sub.parentId?.name || 'N/A'})`,
-  })) || [];
+  // Danh mục con lấy từ mảng `subcategories` của từng danh mục cha.
+  const subcategoryOptions = (categories || []).flatMap(cat =>
+    (cat.subcategories || []).map(sub => ({
+      value: sub._id,
+      label: `${sub.name} (${cat.name})`,
+    }))
+  );
 
   // Custom styles for react-select (dark theme)
   const selectStyles = {

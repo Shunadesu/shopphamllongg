@@ -51,5 +51,56 @@ export default defineConfig({
     assetsInlineLimit: 4096,
     // Report compressed sizes in the build log
     reportCompressedSize: true,
+    rollupOptions: {
+      output: {
+        // Tách vendor ra khỏi main chunk để browser cache độc lập và
+        // main chunk chỉ còn code của app.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined;
+
+          if (
+            id.includes('react-custom-roulette') ||
+            id.includes('react-confetti') ||
+            id.includes('framer-motion') ||
+            id.includes('motion-dom') ||
+            id.includes('motion-utils')
+          ) {
+            return 'motion';
+          }
+
+          if (id.includes('swiper')) {
+            return 'swiper';
+          }
+
+          if (
+            id.includes('yup') ||
+            id.includes('date-fns') ||
+            id.includes('react-hook-form') ||
+            id.includes('@hookform')
+          ) {
+            return 'forms';
+          }
+
+          if (
+            id.includes('react-router') ||
+            id.includes('react-router-dom') ||
+            id.includes('@remix-run')
+          ) {
+            return 'router';
+          }
+
+          if (
+            id.includes('node_modules/react/') ||
+            id.includes('node_modules/react-dom/') ||
+            id.includes('node_modules/scheduler/') ||
+            id.includes('node_modules/use-sync-external-store')
+          ) {
+            return 'react-vendor';
+          }
+
+          return 'vendor';
+        },
+      },
+    },
   },
 })

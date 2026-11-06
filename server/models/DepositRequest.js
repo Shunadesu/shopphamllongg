@@ -107,9 +107,28 @@ const depositRequestSchema = new mongoose.Schema({
   sepayRawPayload: {
     type: mongoose.Schema.Types.Mixed,
     default: null
+  },
+  // === Chống spam: IP & User-Agent người tạo lệnh nạp ===
+  // IP thật của client (đã resolve qua reverse proxy nhờ `trust proxy`).
+  // Không `default: null` để field chỉ xuất hiện ở document mới — dữ liệu cũ
+  // đọc được bình thường (undefined → hiển thị 'N/A' ở admin).
+  ipAddress: {
+    type: String,
+  },
+  // User-Agent rút gọn, phục vụ audit / điều tra spam.
+  ipUserAgent: {
+    type: String,
+    default: '',
   }
 }, {
   timestamps: true
 });
+
+// Index phục vụ truy vấn đếm lệnh nạp pending theo user (giới hạn spam theo user).
+depositRequestSchema.index({ userId: 1, status: 1 });
+
+// Index phục vụ truy vấn đếm lệnh nạp pending theo IP (giới hạn spam theo IP).
+// Compound { ipAddress, status } vì query luôn lọc cả 2 field.
+depositRequestSchema.index({ ipAddress: 1, status: 1 });
 
 export default mongoose.model('DepositRequest', depositRequestSchema);

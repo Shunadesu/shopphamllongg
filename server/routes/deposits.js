@@ -53,7 +53,9 @@ const getVietqrBankCode = (bankName) => {
   }
   return 'ACB';
 };
-import { depositLimiter } from '../middleware/rateLimiter.js';
+import { depositCreateLimiter } from '../middleware/rateLimiter.js';
+import { depositIpLimit, MAX_PENDING_PER_IP, MAX_PENDING_PER_USER } from '../middleware/depositIpLimit.js';
+import { getClientIp, maskIp } from '../utils/clientIp.js';
 import { sendDepositNotification } from '../services/telegramBot.js';
 
 // === Card exchange rates ===
@@ -115,7 +117,7 @@ router.get('/bank-accounts', async (req, res) => {
 });
 
 // Create deposit request - WITH RATE LIMITING
-router.post('/request', auth, depositLimiter, async (req, res) => {
+router.post('/request', auth, depositCreateLimiter, depositIpLimit, async (req, res) => {
   try {
     const { amount, bankAccountId } = req.body;
 
@@ -133,7 +135,9 @@ router.post('/request', auth, depositLimiter, async (req, res) => {
       userId: req.user._id,
       amount,
       bankAccountId,
-      transferNote: '' // Will be set after save
+      transferNote: '', // Will be set after save
+      ipAddress: req.depositIp,
+      ipUserAgent: req.headers['user-agent'] || ''
     });
 
     await depositRequest.save();
@@ -154,7 +158,7 @@ router.post('/request', auth, depositLimiter, async (req, res) => {
     console.log(
       `[Deposits] ✅ Created deposit request #${depositRequest._id.toString().slice(-8).toUpperCase()} ` +
       `for user=${req.user.username} — ${amount.toLocaleString('vi-VN')}đ, ` +
-      `transferNote="${depositCode}", status=pending`
+      `transferNote="${depositCode}", status=pending, ip=${req.depositIp}`
     );
 
     res.status(201).json({
@@ -168,7 +172,7 @@ router.post('/request', auth, depositLimiter, async (req, res) => {
 });
 
 // Card deposit request - nạp bằng thẻ cào điện thoại
-router.post('/card-request', auth, async (req, res) => {
+router.post('/card-request', auth, depositCreateLimiter, depositIpLimit, async (req, res) => {
   try {
     const { amount, cardType, cardSerial, cardCode } = req.body;
 
@@ -225,7 +229,9 @@ router.post('/card-request', auth, async (req, res) => {
       cardType,
       cardSerial: cardSerial.trim(),
       cardCode: cardCode.trim(),
-      transferNote: '' // Will be set after save
+      transferNote: '', // Will be set after save
+      ipAddress: req.depositIp,
+      ipUserAgent: req.headers['user-agent'] || ''
     });
 
     await depositRequest.save();
@@ -246,7 +252,7 @@ router.post('/card-request', auth, async (req, res) => {
     console.log(
       `[Deposits] ✅ Created card deposit request #${depositRequest._id.toString().slice(-8).toUpperCase()} ` +
       `for user=${req.user.username} — ${receivedAmount.toLocaleString('vi-VN')}đ (${faceAmount.toLocaleString('vi-VN')}đ @ ${rate}%), ` +
-      `transferNote="${depositCode}", status=pending`
+      `transferNote="${depositCode}", status=pending, ip=${req.depositIp}`
     );
 
     res.status(201).json({
@@ -275,7 +281,7 @@ router.get('/card-rates', async (req, res) => {
 
 // Random bank deposit request - user chỉ nhập số tiền, server random 1 ngân hàng active
 // và tạo DepositRequest pending ngay. Admin sẽ duyệt tay.
-router.post('/random-request', auth, async (req, res) => {
+router.post('/random-request', auth, depositCreateLimiter, depositIpLimit, async (req, res) => {
   try {
     const { amount } = req.body;
 
@@ -299,7 +305,9 @@ router.post('/random-request', auth, async (req, res) => {
       userId: req.user._id,
       amount,
       bankAccountId: selectedBank._id,
-      transferNote: '' // Will be set after save
+      transferNote: '', // Will be set after save
+      ipAddress: req.depositIp,
+      ipUserAgent: req.headers['user-agent'] || ''
     });
 
     await depositRequest.save();
@@ -316,7 +324,7 @@ router.post('/random-request', auth, async (req, res) => {
       `for user=${req.user.username} — ${amount.toLocaleString('vi-VN')}đ → ` +
       `${selectedBank.bankName} (STK ${selectedBank.accountNumber}), ` +
       `transferNote="${depositCode}", useVietQr=${selectedBank.useVietQr}, ` +
-      `vietqrCode="${vietqrCode}", status=pending`
+      `vietqrCode="${vietqrCode}", status=pending, ip=${req.depositIp}`
     );
 
     // Send Telegram notification
@@ -365,6 +373,31 @@ router.get('/my-requests', auth, async (req, res) => {
     res.json(deposits);
   } catch (error) {
     console.error('Get my deposits error:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// Số lệnh nạp pending hiện tại của user + giới hạn — frontend dùng để hiển thị
+// "Bạn đang có X/3 lệnh nạp chờ duyệt" và cảnh báo trước khi user bị chặn.
+router.get('/my-limit', auth, async (req, res) => {
+  try {
+    const ip = getClientIp(req);
+    const userId = req.user._id;
+
+    const [userPending, ipPending] = await Promise.all([
+      DepositRequest.countDocuments({ userId, status: 'pending' }),
+      DepositRequest.countDocuments({ ipAddress: ip, status: 'pending' }),
+    ]);
+
+    res.json({
+      pendingCount: userPending,
+      maxPending: MAX_PENDING_PER_USER,
+      ipPendingCount: ipPending,
+      maxPendingPerIp: MAX_PENDING_PER_IP,
+      ipMasked: maskIp(ip),
+    });
+  } catch (error) {
+    console.error('Get my deposit limit error:', error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 });

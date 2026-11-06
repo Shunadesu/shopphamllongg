@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Confetti from 'react-confetti';
 import api, { getImageUrl } from '../utils/api';
 import LazyImage from './LazyImage';
+import DepositLimitNotice from './DepositLimitNotice';
 import { getVietqrBankCode } from '../utils/bankUtils';
 import { useAuthStore } from '../store/authStore';
 import { useDepositStore } from '../store/data/depositStore';
@@ -230,12 +231,18 @@ const DepositPanel = ({ user }) => {
       setNow(Date.now());
       hasShownCelebration.current = false;
       try { await useDepositStore.getState().fetchMyRequests(true); } catch {}
+      // Cập nhật bộ đếm lệnh nạp pending (vừa tạo thêm 1)
+      try { await useDepositStore.getState().fetchDepositLimit(true); } catch {}
     } catch (error) {
       console.error(
         '[DepositPanel] ❌ Tạo yêu cầu nạp thất bại:',
         error?.response?.data?.message || error?.message || error
       );
       toast.error(error.response?.data?.message || 'Không thể tạo yêu cầu nạp tiền');
+      // Bị chặn do giới hạn → refresh bộ đếm để hiển thị đúng số lệnh đang chờ
+      if (error?.response?.status === 429) {
+        try { await useDepositStore.getState().fetchDepositLimit(true); } catch {}
+      }
     } finally {
       setSubmitting(false);
     }
@@ -397,6 +404,9 @@ const DepositPanel = ({ user }) => {
                 transition={{ duration: 0.2 }}
                 className="card p-2 space-y-5"
               >
+                {/* Số lệnh nạp đang chờ duyệt + giới hạn chống spam */}
+                <DepositLimitNotice showIpHint />
+
                 {/* Số tiền input */}
                 <div>
                   <div className="flex items-center justify-between">

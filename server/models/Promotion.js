@@ -34,7 +34,11 @@ const promotionSchema = new mongoose.Schema(
     }],
     subcategoryIds: [{
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Subcategory',
+      // Danh mục con cũng là 1 bản ghi trong collection 'categories'
+      // (khác biệt qua parentId) → ref phải là 'Category'.
+      // Ref 'Subcategory' không tồn tại → populate() sẽ ném lỗi
+      // MissingSchemaError và làm hỏng endpoint chi tiết khuyến mãi.
+      ref: 'Category',
     }],
     // Thời gian áp dụng (optional)
     startDate: {

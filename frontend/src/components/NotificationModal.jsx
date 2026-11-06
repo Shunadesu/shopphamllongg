@@ -65,11 +65,17 @@ export default function NotificationModal() {
       />
 
       {/* Modal */}
-      <div className="relative w-full max-w-lg bg-white dark:bg-dark-lighter rounded-2xl shadow-2xl overflow-hidden animate-fadeIn">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={currentNotification.title}
+        className="relative w-full max-w-lg bg-white dark:bg-dark-lighter rounded-2xl shadow-2xl overflow-hidden animate-fadeIn"
+      >
         {/* Close button */}
         {currentNotification.dismissible && (
           <button
             onClick={handleDismiss}
+            aria-label="Đóng thông báo"
             className="absolute top-4 right-4 z-10 p-2 bg-black/30 hover:bg-black/50 dark:bg-dark/50 dark:hover:bg-dark rounded-full transition-colors"
           >
             <FiX className="w-5 h-5 text-white" />
@@ -97,6 +103,7 @@ export default function NotificationModal() {
 
           {/* Content - supports HTML */}
           <div
+            aria-live="polite"
             className="text-slate-600 dark:text-slate-300 text-center leading-relaxed"
             dangerouslySetInnerHTML={{ __html: currentNotification.content }}
           />

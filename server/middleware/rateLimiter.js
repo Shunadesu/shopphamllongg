@@ -35,19 +35,28 @@ export const purchaseLimiter = rateLimit({
   }
 });
 
-// Rate limiter for deposit API
-export const depositLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 3, // Max 3 deposit requests per minute per IP
+// Rate limiter chung cho TẤT CẢ endpoint tạo lệnh nạp
+// (/request, /card-request, /random-request).
+//
+// Trước đây chỉ `/request` có limiter (`depositLimiter`, 3 req/phút) → `card-request`
+// và `random-request` không giới hạn gì, là lỗ hổng spam. Giờ dùng chung 1 limiter
+// cho cả 3 để chặn bot/script tạo hàng loạt lệnh nạp từ 1 IP.
+//
+// Lưu ý: limiter này chạy TRƯỚC `depositIpLimit` trong chain — mỗi IP bị đếm
+// ở đây trước, sau đó mới kiểm tra giới hạn lệnh nạp pending.
+export const depositCreateLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 phút
+  max: 5, // Max 5 lệnh nạp mới trong 5 phút per IP
   message: {
-    message: 'Quá nhiều yêu cầu nạp tiền. Vui lòng đợi 1 phút và thử lại.'
+    message: 'Quá nhiều yêu cầu tạo lệnh nạp. Vui lòng đợi vài phút và thử lại.'
   },
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
     res.status(429).json({
-      message: 'Quá nhiều yêu cầu nạp tiền. Vui lòng đợi 1 phút và thử lại.',
-      retryAfter: 60
+      message: 'Quá nhiều yêu cầu tạo lệnh nạp. Vui lòng đợi vài phút và thử lại.',
+      code: 'DEPOSIT_RATE_LIMIT',
+      retryAfter: 300
     });
   }
 });

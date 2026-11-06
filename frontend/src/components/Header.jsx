@@ -1,5 +1,5 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
 import { useThemeStore } from '../store/themeStore';
@@ -7,8 +7,11 @@ import { useSettings } from '../hooks/useSettings';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { useUserStore } from '../store/data/userStore';
 import { useProtectedNavigate } from '../hooks/useProtectedNavigate';
-import AuthDrawer from './AuthDrawer';
-import CartDrawer from './CartDrawer';
+import { getResponsiveImageUrl } from '../utils/api';
+// Drawers được lazy-load: chúng kéo theo framer-motion + react-hook-form
+// (~230 KB) chỉ cần khi user thực sự mở, không nên nằm trong main bundle.
+const AuthDrawer = lazy(() => import('./AuthDrawer'));
+const CartDrawer = lazy(() => import('./CartDrawer'));
 import LazyImage from './LazyImage';
 import { FiShoppingCart, FiUser, FiLogOut, FiMenu, FiSun, FiMoon, FiPlus, FiUserPlus } from 'react-icons/fi';
 import { GiSpinningBlades } from 'react-icons/gi';
@@ -62,8 +65,10 @@ const Header = ({ onOpenAuth, onOpenCart, isAuthOpen, isCartOpen, onCloseAuth, o
   };
 
   // Header styles - always solid, themed colors
+  // Không dùng backdrop-blur: blur trên header fixed làm main-thread tốn
+  // rất nhiều mỗi frame (paintCompositeRender). Nền đặc + border là đủ.
   const getHeaderClasses = () => {
-    return 'fixed top-0 left-0 right-0 z-40 bg-white/95 dark:bg-dark/95 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800';
+    return 'fixed top-0 left-0 right-0 z-40 bg-white dark:bg-dark border-b border-slate-200 dark:border-slate-800';
   };
 
   // Text/icon color helpers for header - themed colors
@@ -90,13 +95,17 @@ const Header = ({ onOpenAuth, onOpenCart, isAuthOpen, isCartOpen, onCloseAuth, o
         <div className="container-custom">
           <div className="flex items-center justify-between h-14">
             {/* Logo */}
-            <Link to="/" className="flex items-center space-x-2">
+            <Link to="/" className="flex items-center space-x-2" aria-label="Shop Pham Long - Trang chủ">
               {settings?.logo ? (
                 <LazyImage
                   src={settings.logo}
                   alt="Shopphamlong"
                   className="h-12 w-auto object-contain"
+                  width={160}
+                  height={48}
                   eager
+                  srcSet={getResponsiveImageUrl(settings.logo, [160, 320, 640])}
+                  sizes="(max-width: 768px) 48px, 160px"
                 />
               ) : (
                 <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-dark rounded-lg flex items-center justify-center">
@@ -131,7 +140,12 @@ const Header = ({ onOpenAuth, onOpenCart, isAuthOpen, isCartOpen, onCloseAuth, o
               
               {/* Dropdown Hướng dẫn */}
               <div className="relative group">
-                <button className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${iconColor()} flex items-center gap-1`}>
+                <button
+                  aria-label="Hướng dẫn"
+                  aria-haspopup="true"
+                  aria-expanded="false"
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${iconColor()} flex items-center gap-1`}
+                >
                   Hướng dẫn
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -217,6 +231,7 @@ const Header = ({ onOpenAuth, onOpenCart, isAuthOpen, isCartOpen, onCloseAuth, o
               {/* Cart - Always visible */}
               <button
                 onClick={onOpenCart}
+                aria-label="Giỏ hàng"
                 className={`relative p-2 rounded-lg transition-colors ${hoverBg()}`}
               >
                 <FiShoppingCart className={`w-5 h-5 sm:w-6 sm:h-6 ${iconColor()}`} />
@@ -302,6 +317,7 @@ const Header = ({ onOpenAuth, onOpenCart, isAuthOpen, isCartOpen, onCloseAuth, o
                   </button>
                   <button
                     onClick={() => onOpenAuth('register')}
+                    aria-label="Đăng ký"
                     className="px-3 py-2 rounded-lg text-sm font-medium bg-primary text-white hover:bg-primary-dark transition-colors flex items-center gap-2"
                   >
                     <FiUserPlus className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -313,6 +329,9 @@ const Header = ({ onOpenAuth, onOpenCart, isAuthOpen, isCartOpen, onCloseAuth, o
               {/* Mobile Menu Toggle */}
               <button
                 onClick={() => setShowMobileMenu(!showMobileMenu)}
+                aria-label={showMobileMenu ? 'Đóng menu' : 'Mở menu'}
+                aria-expanded={showMobileMenu}
+                aria-controls="mobile-menu"
                 className={`md:hidden p-2 rounded-lg transition-colors ${hoverBg()}`}
               >
                 <FiMenu className={`w-5 h-5 ${iconColor()}`} />
@@ -322,7 +341,7 @@ const Header = ({ onOpenAuth, onOpenCart, isAuthOpen, isCartOpen, onCloseAuth, o
 
           {/* Mobile Menu */}
           {showMobileMenu && (
-            <div className="md:hidden py-4 border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-dark/95 backdrop-blur-md">
+            <div id="mobile-menu" className="md:hidden py-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-dark">
               {/* Balance Display - Mobile */}
               {isAuthenticated && (
                 <div className="px-4 mb-4">
@@ -414,8 +433,10 @@ const Header = ({ onOpenAuth, onOpenCart, isAuthOpen, isCartOpen, onCloseAuth, o
       </header>
 
       {/* Drawers */}
-      <AuthDrawer isOpen={isAuthOpen} onClose={onCloseAuth} initialView={authInitialView} />
-      <CartDrawer isOpen={isCartOpen} onClose={onCloseCart} onOpenAuth={onOpenAuth} />
+      <Suspense fallback={null}>
+        <AuthDrawer isOpen={isAuthOpen} onClose={onCloseAuth} initialView={authInitialView} />
+        <CartDrawer isOpen={isCartOpen} onClose={onCloseCart} onOpenAuth={onOpenAuth} />
+      </Suspense>
     </>
   );
 };

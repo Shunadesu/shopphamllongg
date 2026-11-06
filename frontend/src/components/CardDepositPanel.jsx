@@ -3,6 +3,7 @@ import { FiCreditCard, FiHash, FiKey, FiAlertCircle, FiCheck, FiPhone, FiPercent
 import { toast } from 'react-hot-toast';
 import { useDepositStore } from '../store/data/depositStore';
 import { useSettingsStore } from '../store/data/settingsStore';
+import DepositLimitNotice from './DepositLimitNotice';
 
 const CARD_TYPES = [
   { value: '', label: 'Chọn loại thẻ', disabled: true },
@@ -100,8 +101,15 @@ export default function CardDepositPanel() {
       setAmount(0);
       setCardSerial('');
       setCardCode('');
+
+      // Cập nhật bộ đếm lệnh nạp pending (vừa tạo thêm 1)
+      try { await useDepositStore.getState().fetchDepositLimit(true); } catch {}
     } catch (error) {
       toast.error(error.response?.data?.message || 'Có lỗi xảy ra');
+      // Bị chặn do giới hạn → refresh bộ đếm để hiển thị đúng số lệnh đang chờ
+      if (error?.response?.status === 429) {
+        try { await useDepositStore.getState().fetchDepositLimit(true); } catch {}
+      }
     } finally {
       setSubmitting(false);
     }
@@ -163,6 +171,9 @@ export default function CardDepositPanel() {
       {/* Form Card */}
       <div className={`card ${!cardEnabled ? 'opacity-60 pointer-events-none' : ''}`}>
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Số lệnh nạp đang chờ duyệt + giới hạn chống spam */}
+          <DepositLimitNotice showIpHint />
+
           {/* Card Type Select */}
           <div>
             <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">

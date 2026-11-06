@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { FiFacebook, FiMail, FiPhone, FiMapPin, FiGlobe } from 'react-icons/fi';
 import { useSettings, useSocialLinks } from '../hooks';
 import LazyImage from './LazyImage';
+import { getResponsiveImageUrl } from '../utils/api';
 
 const Footer = () => {
   // Fetch settings for logo
@@ -29,13 +30,17 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
           {/* Brand */}
           <div>
-            <Link to="/" className="flex items-center space-x-2 mb-4">
+            <Link to="/" className="flex items-center space-x-2 mb-4" aria-label="Shop Pham Long - Trang chủ">
               {settings?.logo ? (
                 <LazyImage
                   src={settings.logo}
                   alt="Shopphamlong"
                   className="h-20 w-auto object-contain"
+                  width={320}
+                  height={80}
                   eager
+                  srcSet={getResponsiveImageUrl(settings.logo, [160, 320, 640])}
+                  sizes="80px"
                 />
               ) : (
                 <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-dark rounded-lg flex items-center justify-center">
@@ -142,10 +147,11 @@ const Footer = () => {
                   href={link.url}
                   target="_blank"
                   rel="noopener noreferrer"
+                  aria-label={link.name}
                   className="w-8 h-8 bg-slate-200 hover:bg-primary dark:bg-slate-800 dark:hover:bg-primary rounded-full flex items-center justify-center transition-colors"
                   title={link.name}
                 >
-                  <span className="text-slate-700 dark:text-slate-300">
+                  <span aria-hidden="true" className="text-slate-700 dark:text-slate-300">
                     <PlatformIcon platform={link.platform} className="w-4 h-4" />
                   </span>
                 </a>

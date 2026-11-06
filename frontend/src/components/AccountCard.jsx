@@ -6,11 +6,16 @@ const AccountCard = ({ account, onBuyNow }) => {
   return (
     <div className="card hover:shadow-lg hover:shadow-primary/10 hover:-translate-y-1 transition-all duration-300 group relative">
       {/* Image */}
-      <Link to={`/account/${account._id}`} className="block">
+      <Link
+        to={`/account/${account._id}`}
+        aria-label={`Xem chi tiết ${account.title}`}
+        className="block"
+      >
         <div className="relative rounded-lg mb-2 aspect-video bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
           <LazyImage
             src={account.images?.[0]}
-            alt={account.title}
+            alt=""
+            aria-hidden="true"
             className="w-full h-full"
             objectFit="contain"
             skeletonClassName="rounded-lg"
@@ -29,8 +34,8 @@ const AccountCard = ({ account, onBuyNow }) => {
 
       {/* Content */}
       <div className="flex flex-col">
-        <Link to={`/account/${account._id}`}>
-          <h3 className="bg-primary text-transparent p-1 text-sm font-semibold text-slate-900 dark:text-white mb-1 line-clamp-1 min-h-[1rem]  transition-colors">
+        <Link to={`/account/${account._id}`} aria-label={account.title}>
+          <h3 className="p-1 text-sm font-semibold text-slate-900 dark:text-white mb-1 line-clamp-1 min-h-[1rem] transition-colors">
             {account.title}
           </h3>
         </Link>
@@ -47,10 +52,9 @@ const AccountCard = ({ account, onBuyNow }) => {
         {/* Rank / Server */}
         {account.rank && (
           <div className="flex items-center space-x-1 mb-1">
-            <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">
+            <span className="text-xs bg-primary/20 text-primary-dark dark:text-primary-light px-2 py-0.5 rounded">
               {account.rank}
-            </span>
-            {account.server && (
+            </span>            {account.server && (
               <span className="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded">
                 {account.server}
               </span>
@@ -87,7 +91,7 @@ const AccountCard = ({ account, onBuyNow }) => {
             <span className='hidden md:flex text-sm text-slate-400'>
               Giá bán:
             </span>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-300 font-black text-xl animate-gradient bg-[length:200%_auto]">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-700 via-amber-600 to-amber-700 font-black text-xl bg-[length:200%_auto] dark:from-amber-300 dark:via-amber-200 dark:to-amber-300">
               {account.price.toLocaleString('vi-VN')}đ
             </span>
           </div>

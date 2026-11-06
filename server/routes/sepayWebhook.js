@@ -616,6 +616,7 @@ async function sendApprovedDepositNotification(deposit, sepayPayload, user, spin
       `💵 <b>Thực nhận:</b> ${formatVnd(sepayPayload.transferAmount)}\n` +
       `🏦 <b>Ngân hàng:</b> ${sepayPayload.gateway || 'N/A'}\n` +
       `📝 <b>Nội dung:</b> <code>${sepayPayload.content || 'N/A'}</code>\n` +
+      (deposit.ipAddress ? `🌐 <b>IP tạo lệnh nạp:</b> <code>${deposit.ipAddress}</code>\n` : '') +
       `${spinsLine}\n` +
       `${balanceLine}\n` +
       `${totalLine}\n` +

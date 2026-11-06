@@ -31,7 +31,12 @@ export default function LazyImage({
   // IntersectionObserver rootMargin — distance before viewport to start loading
   // Set to "200px" for near-visible images, "500px" for images further down
   rootMargin = '200px',
-  // Object fit mode (default: 'cover')
+  // Object fit mode:
+  //   'cover'       (mặc định) — phủ kín khung, có thể cắt ảnh
+  //   'contain'     — ảnh vừa khung (max-w/max-h), không phóng to lên
+  //   'contain-full' — ảnh phủ kín khung theo chiều dài nhất nhưng GIỮ
+  //                   ĐÚNG TỶ LỆ (object-fit: contain) → không bị cắt, và
+  //                   phần trống còn lại lấp nền theo màu container.
   objectFit = 'cover',
   ...rest
 }) {
@@ -83,22 +88,30 @@ export default function LazyImage({
   const loadingAttr = eager ? 'eager' : 'lazy';
 
   // Build image className and style based on objectFit
-  const imgClassName = objectFit === 'contain'
+  const isContain = objectFit === 'contain';
+  const isContainFull = objectFit === 'contain-full';
+
+  const imgClassName = isContain
     ? 'max-w-full max-h-full object-contain transition-opacity duration-300'
-    : 'w-full h-full object-cover transition-opacity duration-300';
-  
-  const imgInlineStyle = objectFit === 'contain'
+    : `w-full h-full ${isContainFull ? 'object-contain' : 'object-cover'} transition-opacity duration-300`;
+
+  const imgInlineStyle = isContain
     ? { width: 'auto', height: 'auto', ...imgStyle }
     : imgStyle;
 
   // Build container className - if no width/height provided, take full parent size
   // Add flex centering for contain mode
-  const containerClassName = objectFit === 'contain'
+  const containerClassName = isContain
     ? `relative overflow-hidden flex items-center justify-center ${className}`
     : `relative overflow-hidden ${className}`;
   const containerStyle = {
     width: width !== undefined ? (typeof width === 'number' ? `${width}px` : width) : undefined,
     height: height !== undefined ? (typeof height === 'number' ? `${height}px` : height) : undefined,
+    // Khi biết cả width & height → đặt aspect-ratio để container giữ đúng
+    // tỷ lệ ngay từ đầu, tránh nhảy layout khi ảnh tải xong.
+    ...(width && height
+      ? { aspectRatio: `${width} / ${height}` }
+      : {}),
     ...style,
   };
 
@@ -134,6 +147,11 @@ export default function LazyImage({
           alt={alt}
           loading={loadingAttr}
           decoding="async"
+          // width/height trực tiếp trên <img> để browser reserve chỗ
+          // trước khi ảnh tải xong → giảm CLS. Trước đây chỉ đặt trên
+          // wrapper <div> nên trình duyệt không biết intrinsic size.
+          width={width}
+          height={height}
           srcSet={srcSet || undefined}
           sizes={sizes || undefined}
           onLoad={() => setLoaded(true)}

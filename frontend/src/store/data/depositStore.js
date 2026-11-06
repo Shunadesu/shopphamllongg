@@ -5,6 +5,7 @@ import api from '../../utils/api';
 const BANK_TTL = 30 * 60 * 1000; // 30 minutes
 const REQUESTS_TTL = 30 * 1000; // 30 seconds
 const TOP_TTL = 10 * 60 * 1000; // 10 minutes
+const LIMIT_TTL = 15 * 1000; // 15 seconds — bộ đếm lệnh nạp pending cần tươi
 
 export const useDepositStore = create(
   persist(
@@ -20,6 +21,10 @@ export const useDepositStore = create(
       topDepositors: [],
       lastFetchedTop: 0,
       topLoading: false,
+
+      // Giới hạn lệnh nạp pending: { pendingCount, maxPending, ipPendingCount, maxPendingPerIp, ipMasked }
+      depositLimit: null,
+      lastFetchedLimit: 0,
 
       error: null,
 
@@ -54,6 +59,23 @@ export const useDepositStore = create(
         } catch (err) {
           set({ requestsLoading: false, error: err });
           throw err;
+        }
+      },
+
+      // Lấy số lệnh nạp pending hiện tại + giới hạn (chống spam theo IP / theo user).
+      fetchDepositLimit: async (force = false) => {
+        const state = get();
+        if (!force && state.depositLimit && Date.now() - state.lastFetchedLimit < LIMIT_TTL) {
+          return state.depositLimit;
+        }
+        try {
+          const res = await api.get('/deposits/my-limit');
+          const data = res.data || null;
+          set({ depositLimit: data, lastFetchedLimit: Date.now() });
+          return data;
+        } catch (err) {
+          // Không chặn luồng UI vì lỗi fetch giới hạn — bỏ qua âm thầm.
+          return state.depositLimit;
         }
       },
 
@@ -152,6 +174,8 @@ export const useDepositStore = create(
         topDepositors: [],
         lastFetchedTop: 0,
         topLoading: false,
+        depositLimit: null,
+        lastFetchedLimit: 0,
         error: null,
       }),
     }),

@@ -6,6 +6,7 @@ import GameAccount from '../models/GameAccount.js';
 import User from '../models/User.js';
 import { auth } from '../middleware/auth.js';
 import { decrypt } from '../utils/encryption.js';
+import { getEffectivePrice, applyPromotionPricing } from '../utils/priceCalculator.js';
 import { purchaseLimiter } from '../middleware/rateLimiter.js';
 import { sendPurchaseNotification } from '../services/telegramBot.js';
 
@@ -30,13 +31,16 @@ router.post('/buy-now', auth, purchaseLimiter, async (req, res) => {
       return res.status(404).json({ message: 'Tài khoản không tồn tại hoặc đã được bán' });
     }
 
+    // Giá thu = giá hiển thị trên UI (đã áp khuyến mãi nếu có).
+    const price = await getEffectivePrice(account);
+
     // Check user balance
     const user = await User.findById(req.user._id).session(session);
-    if (user.balance < account.price) {
+    if (user.balance < price) {
       await session.abortTransaction();
       return res.status(400).json({
-        message: `Số dư không đủ. Cần ${account.price.toLocaleString('vi-VN')}đ, hiện có ${user.balance.toLocaleString('vi-VN')}đ`,
-        required: account.price,
+        message: `Số dư không đủ. Cần ${price.toLocaleString('vi-VN')}đ, hiện có ${user.balance.toLocaleString('vi-VN')}đ`,
+        required: price,
         current: user.balance
       });
     }
@@ -48,9 +52,9 @@ router.post('/buy-now', auth, purchaseLimiter, async (req, res) => {
       orderNumber,
       items: [{
         accountId: account._id,
-        price: account.price
+        price
       }],
-      totalAmount: account.price,
+      totalAmount: price,
       status: 'completed',
       paymentMethod: 'balance'
     });
@@ -59,8 +63,8 @@ router.post('/buy-now', auth, purchaseLimiter, async (req, res) => {
 
     // Update user balance and purchase history
     const prevTotalSpent = user.totalSpent || 0;
-    user.balance -= account.price;
-    user.totalSpent = prevTotalSpent + account.price;
+    user.balance -= price;
+    user.totalSpent = prevTotalSpent + price;
     user.purchaseHistory.push(order._id);
 
     // Spin thưởng CHỈ tính theo nạp tiền (không cộng khi mua hàng)
@@ -164,7 +168,11 @@ router.get('/cart', auth, async (req, res) => {
     // Filter out sold/unavailable items
     const availableItems = cart.items.filter(item => item && item.status === 'available');
 
-    res.json({ items: availableItems });
+    // Áp giá khuyến mãi để tổng tiền hiển thị trên giỏ hàng / checkout
+    // khớp đúng với số tiền server thu khi thanh toán.
+    const items = await applyPromotionPricing(availableItems);
+
+    res.json({ items });
   } catch (error) {
     console.error('Get cart error:', error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
@@ -214,8 +222,14 @@ router.post('/checkout', auth, purchaseLimiter, async (req, res) => {
       });
     }
 
-    // Calculate total
-    const totalAmount = cart.items.reduce((sum, item) => sum + item.price, 0);
+    // Calculate total — giá thu = giá hiển thị (đã áp khuyến mãi nếu có).
+    const pricedItems = await Promise.all(
+      cart.items.map(async (item) => ({
+        item,
+        price: await getEffectivePrice(item),
+      }))
+    );
+    const totalAmount = pricedItems.reduce((sum, x) => sum + x.price, 0);
 
     // Check user balance
     const user = await User.findById(req.user._id).session(session);
@@ -230,9 +244,9 @@ router.post('/checkout', auth, purchaseLimiter, async (req, res) => {
 
     // Create order
     const orderNumber = 'ORD' + Date.now();
-    const orderItems = cart.items.map(item => ({
+    const orderItems = pricedItems.map(({ item, price }) => ({
       accountId: item._id,
-      price: item.price
+      price
     }));
 
     const order = new Order({

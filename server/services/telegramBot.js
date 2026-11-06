@@ -98,6 +98,14 @@ export async function sendDepositNotification(deposit) {
     const bank = depositData.bankAccountId;
     const isCard = depositData.depositMethod === 'card';
 
+    // Dòng IP cho admin — giúp phát hiện lệnh nạp spam / trùng IP khi duyệt.
+    const ipLine = depositData.ipAddress
+      ? `🌐 <b>IP tạo lệnh nạp:</b> <code>${depositData.ipAddress}</code>`
+      : `🌐 <b>IP tạo lệnh nạp:</b> N/A (lệnh nạp cũ)`;
+    const uaLine = depositData.ipUserAgent
+      ? `🖥 <b>Thiết bị:</b> ${depositData.ipUserAgent}`
+      : '';
+
     // Format message
     const message = isCard
       ? `
@@ -119,6 +127,9 @@ export async function sendDepositNotification(deposit) {
 💰 <b>Mệnh giá thẻ:</b> <b>${(depositData.faceAmount ?? depositData.amount).toLocaleString('vi-VN')}đ</b>
 📈 <b>Tỷ lệ quy đổi:</b> <b>${depositData.exchangeRate ?? '?'}%</b>
 💵 <b>User nhận được:</b> <b>${depositData.receivedAmount?.toLocaleString('vi-VN') || depositData.amount?.toLocaleString('vi-VN')}đ</b>
+
+${ipLine}
+${uaLine}
 
 ⏰ <b>Thời gian:</b> ${new Date(depositData.createdAt).toLocaleString('vi-VN', {
           timeZone: 'Asia/Ho_Chi_Minh',
@@ -150,6 +161,9 @@ export async function sendDepositNotification(deposit) {
    • STK: <code>${bank?.accountNumber || 'N/A'}</code>
 
 📝 <b>Nội dung CK:</b> <code>${depositData.transferNote || 'N/A'}</code>
+
+${ipLine}
+${uaLine}
 
 ⏰ <b>Thời gian:</b> ${new Date(depositData.createdAt).toLocaleString('vi-VN', {
           timeZone: 'Asia/Ho_Chi_Minh',

@@ -15,9 +15,9 @@ import { useAuthStore } from '../store/authStore';
 // hard-reload kèm `?cv=<version>` để bust cache index.html/bundle.
 //
 // Chi tiết:
-// - Lần chạy đầu tiên (chưa có version trong localStorage): nếu không có
-//   store persist nào thì chỉ ghi version, không reload (tránh reload thừa
-//   cho user mới). Nếu có store persist cũ → coi như lệch → xóa + reload.
+// - Lần chạy đầu tiên (chưa có version trong localStorage): chỉ ghi version,
+//   KHÔNG reload (tránh reload thừa cho user mới).
+// - Version rỗng (server chưa bật versioning): không bao giờ reload.
 // - Lỗi mạng: bỏ qua, thử lại ở lần poll sau. Không xóa nhầm dữ liệu.
 
 const VERSION_KEY = 'frontend-cache-version';
@@ -56,14 +56,6 @@ const setStoredVersion = (version) => {
     localStorage.setItem(VERSION_KEY, version);
   } catch {
     /* localStorage bị chặn (private mode) — bỏ qua */
-  }
-};
-
-const hasStaleStores = () => {
-  try {
-    return STALE_KEYS.some((key) => localStorage.getItem(key) !== null);
-  } catch {
-    return false;
   }
 };
 
@@ -145,16 +137,19 @@ export const syncCacheVersion = async () => {
 
   const stored = getStoredVersion();
 
-  // Lần đầu tiên user vào site
+  // Server chưa bật versioning (version rỗng) → không bao giờ reload.
+  // Đây là trường hợp phổ biến nhất ở bản deploy mới: reload ở đây sẽ khiến
+  // MỌI user lần đầu phải tải trang 2 lần → LCP tăng gấp đôi.
+  if (!version) {
+    // Vẫn ghi lại version (rỗng) để lần sau so sánh được với giá trị thực.
+    if (stored === null) setStoredVersion(version);
+    return { changed: false, version };
+  }
+
+  // Lần đầu tiên user vào site: chỉ ghi version, KHÔNG reload.
+  // (Bỏ nhánh hasStaleStores() — nguyên nhân gây reload thừa: store vừa
+  //  persist vào localStorage nên hasStaleStores() luôn true.)
   if (stored === null) {
-    if (hasStaleStores()) {
-      // Có dữ liệu persist từ trước khi có cơ chế version → coi như cũ
-      clearStaleStores();
-      setStoredVersion(version);
-      hardReload(version);
-      return { changed: true, version };
-    }
-    // User mới, không có gì để xóa → chỉ ghi version, không reload
     setStoredVersion(version);
     return { changed: false, version };
   }

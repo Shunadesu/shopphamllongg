@@ -1106,7 +1106,7 @@ router.get('/deposits/pending-count', adminAuth, async (req, res) => {
 // Get all deposit requests
 router.get('/deposits', adminAuth, async (req, res) => {
   try {
-    const { status, search, depositMethod, page = 1, limit = 100 } = req.query;
+    const { status, search, depositMethod, ip, page = 1, limit = 100 } = req.query;
     const query = {};
     
     if (status) query.status = status;
@@ -1118,6 +1118,11 @@ router.get('/deposits', adminAuth, async (req, res) => {
       } else {
         query.depositMethod = depositMethod;
       }
+    }
+
+    // Lọc chính xác theo IP — admin soi lệnh nạp của một địa chỉ cụ thể.
+    if (ip) {
+      query.ipAddress = String(ip).trim();
     }
     
     // Search functionality
@@ -1134,7 +1139,9 @@ router.get('/deposits', adminAuth, async (req, res) => {
         { userId: { $in: users.map(u => u._id) } },
         { transferNote: new RegExp(search, 'i') },
         { cardSerial: new RegExp(search, 'i') },
-        { transactionCode: new RegExp(search, 'i') }
+        { transactionCode: new RegExp(search, 'i') },
+        // IP: escape để dấu "." không bị hiểu là wildcard (tìm đúng dạng IP).
+        { ipAddress: new RegExp(escapeRegex(search), 'i') }
       ];
     }
 

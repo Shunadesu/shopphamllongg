@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+/* Font Inter được nạp bằng <link> trong index.html (preconnect + swap).
+   Không dùng @import ở đây vì nó block render. */
 
 @tailwind base;
 @tailwind components;
@@ -78,7 +79,7 @@
     left: 50%;
     width: 0;
     height: 2px;
-    background: linear-gradient(90deg, #3B82F6, #93C5FD, #3B82F6);
+    background: linear-gradient(90deg, #2563EB, #93C5FD, #2563EB);
     background-size: 200% 100%;
     border-radius: 1px;
     transform: translateX(-50%);
@@ -116,14 +117,21 @@
     @apply bg-gradient-to-r from-primary to-primary-light bg-clip-text text-transparent;
   }
 
-  /* Giá vàng - dùng cho khuyến mãi / giá sale 🟨 */
+  /* Giá vàng - dùng cho khuyến mãi / giá sale 🟨
+     #A16207 đạt 4.5:1 trên nền trắng (màu cũ #EAB308 chỉ 2.1:1) */
   .text-price {
-    color: #EAB308 !important;
+    color: #A16207 !important;
+  }
+  .dark .text-price {
+    color: #FDE047 !important;
   }
 
   /* Badge khuyến mãi - nền vàng */
   .badge-promotion {
-    @apply bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded-full text-xs font-semibold;
+    @apply bg-yellow-500/20 text-yellow-700 border border-yellow-500/30 px-2 py-0.5 rounded-full text-xs font-semibold;
+  }
+  .dark .badge-promotion {
+    @apply text-yellow-300;
   }
 }
 
@@ -149,9 +157,11 @@
   }
 }
 
+/* Gradient tĩnh cho giá — trước đây chạy animation vô hạn trên MỌI card
+   (mỗi card 1 animation riêng) → tốn main-thread. Giữ class để không phá
+   markup cũ, nhưng không animate. */
 .animate-gradient {
   background-size: 200% auto;
-  animation: gradient-shift 3s ease infinite;
 }
 
 /* Notification Modal Animation */
@@ -208,11 +218,11 @@
   padding: 1rem 1.5rem;
   background: linear-gradient(
     100deg,
-    #1E3A8A 0%,
-    #1D4ED8 28%,
-    #3B82F6 55%,
-    #60A5FA 78%,
-    #93C5FD 100%
+    #172554 0%,
+    #1E3A8A 28%,
+    #1D4ED8 55%,
+    #1E40AF 78%,
+    #2563EB 100%
   );
   overflow: hidden;
   box-shadow:
@@ -318,9 +328,10 @@
     linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
-  /* Always show the blue border by default (previously hover-only) */
-  opacity: 1;
-  animation: border-flow 6s linear infinite;
+  /* Chỉ hiện viền khi hover — trước đây animation chạy vô hạn trên MỌI
+     category card → tốn main-thread liên tục (paintCompositeRender 14.6s). */
+  opacity: 0;
+  transition: opacity 0.3s ease;
   z-index: 0;
 }
 
@@ -330,7 +341,7 @@
 }
 
 .category-card:hover::before {
-  /* Speed up and brighten on hover for emphasis */
+  opacity: 1;
   animation: border-flow 1.5s linear infinite;
 }
 
@@ -381,7 +392,7 @@
 
 /* Category card badge - positioned absolutely */
 .category-card__badge {
-  @apply bg-primary/90 text-white text-xs px-2 py-0.5 rounded-full;
+  @apply bg-primary text-white text-xs px-2 py-0.5 rounded-full;
   position: absolute;
   top: 0.5rem;
   right: 0.5rem;
@@ -394,6 +405,51 @@
   }
   100% {
     background-position: 300% 50%;
+  }
+}
+
+/* ── Hero banner layout (reserve space to kill CLS) ─────────────────────
+   Trước đây chiều cao hero = chiều cao tự nhiên của ảnh (ảnh chưa tải xong
+   → 0px → tải xong → đẩy toàn bộ section bên dưới xuống, CLS 0.424).
+   Giờ chiều cao được đặt trước bằng aspect-ratio:
+   - Mobile (2 khối xếp dọc): mỗi khối cao = 16/9 bề rộng.
+   - Desktop (2 cột): cả grid cao = 16/7 bề rộng, các ô fill theo hàng.
+*/
+.banner-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.banner-cell {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  /* Nền ô banner: ảnh được đặt theo object-fit: contain (giữ đúng tỷ lệ,
+     không bị cắt) nên khoảng trống còn lại lấp màu nền này — 2 cột luôn
+     cùng chiều cao và nhìn như 1 khối liền mạch. */
+  background-color: #0f172a; /* slate-900 */
+}
+
+/* Swiper trong ô banner trái phải chiếm đúng chiều cao ô (không phụ thuộc
+   chiều cao tự nhiên của ảnh) → 2 cột bằng nhau. */
+.banner-cell .swiper,
+.banner-cell .swiper-wrapper,
+.banner-cell .swiper-slide {
+  height: 100%;
+}
+
+@media (min-width: 768px) {
+  .banner-grid {
+    display: grid;
+    grid-auto-rows: 1fr;
+    aspect-ratio: 16 / 7;
+  }
+
+  .banner-cell {
+    height: 100%;
+    aspect-ratio: auto;
   }
 }
 
@@ -435,9 +491,9 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #3B82F6;
+  color: #2563EB;
   background: #ffffff;
-  border: 2px solid #3B82F6;
+  border: 2px solid #2563EB;
   transition:
     color 0.2s ease,
     border-color 0.2s ease,
@@ -552,9 +608,49 @@
 }
 
 .recharge-guide .guide-note strong {
-  color: rgb(59 130 246);
+  color: rgb(37 99 235);
   font-weight: 700;
 }
 .dark .recharge-guide .guide-note strong {
   color: rgb(147 197 253);
+}
+
+/* ── Dark mode: chữ màu primary cần sáng hơn để đạt contrast ≥ 4.5:1 ──────
+   #2563EB trên nền #0B0E14 chỉ 3.74:1 → dùng #93C5FD (10.71:1). */
+.dark .text-primary {
+  color: #93C5FD !important;
+}
+
+/* ── Badge nền primary nhạt + chữ primary ────────────────────────────────
+   #2563EB trên nền primary/20 (≈#D3E0FB) chỉ 3.87:1 → dùng primary-dark
+   #1E40AF (6.63:1) ở light mode. */
+.bg-primary\/20.text-primary,
+.bg-primary\/10.text-primary {
+  color: #1E40AF !important;
+}
+.dark .bg-primary\/20.text-primary,
+.dark .bg-primary\/10.text-primary {
+  color: #93C5FD !important;
+}
+
+/* ── prefers-reduced-motion: tắt toàn bộ animation ─────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Focus ring rõ ràng cho keyboard navigation ───────────────────────── */
+:focus-visible {
+  outline: 2px solid #2563EB;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.dark :focus-visible {
+  outline-color: #93C5FD;
 }

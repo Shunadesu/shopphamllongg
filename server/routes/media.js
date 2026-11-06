@@ -14,7 +14,7 @@ const cacheDir = path.join(uploadsDir, '.cache');
 
 // Các bề rộng được phép resize. Dùng danh sách cố định (allowlist) để
 // tránh bị ép tạo hàng loạt biến thể gây tốn CPU + disk.
-const ALLOWED_WIDTHS = [320, 640, 960, 1280, 1920];
+const ALLOWED_WIDTHS = [160, 320, 640, 960, 1280, 1920];
 
 // Ảnh vector / ảnh động → không resize, serve file gốc.
 const SKIP_RESIZE_EXT = new Set(['.svg', '.gif']);

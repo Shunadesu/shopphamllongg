@@ -14,6 +14,7 @@ export function useAccountList(params = {}) {
   ]);
   const entry = useAccountListStore((s) => s.byFilter[key]);
   const loading = useAccountListStore((s) => s.loading[key]);
+  const loadingMore = useAccountListStore((s) => s.loadingMore[key]);
 
   useEffect(() => {
     if (!entry || useAccountListStore.getState().isStale(key)) {
@@ -28,13 +29,20 @@ export function useAccountList(params = {}) {
     useAccountListStore.getState().fetchAccounts(mergedParams, true).catch(() => {});
   }, [params]);
 
+  // Tải trang tiếp theo (server-side) và ghi thêm vào danh sách hiện tại.
+  const loadMore = useCallback(() => {
+    useAccountListStore.getState().fetchMore(params).catch(() => {});
+  }, [params]);
+
   return {
     data: entry?.data || null,
     accounts: entry?.accounts || [],
     pagination: entry?.pagination || null,
     loading: !!loading,
+    loadingMore: !!loadingMore,
     refresh: () => useAccountListStore.getState().fetchAccounts(params, true),
     setPage,
+    loadMore,
   };
 }
 

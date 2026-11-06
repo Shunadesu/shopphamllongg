@@ -9,6 +9,7 @@ import { useAuthStore } from '../store/authStore';
 import { useUserStore } from '../store/data/userStore';
 import { useOrderStore } from '../store/data/orderStore';
 import { useAccountListStore } from '../store/data/accountListStore';
+import { useAccountCountsStore } from '../store/data/accountCountsStore';
 import api from '../utils/api';
 import { getResponsiveImageUrl } from '../utils/api';
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -36,15 +37,17 @@ const YouTubeLazyEmbed = ({ embedUrl }) => {
   const [playing, setPlaying] = useState(false);
   // Derive thumbnail from YouTube video ID
   const videoId = embedUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/)?.[1];
-  const thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : null;
+  // Thumbnail nhẹ hơn: mqdefault (~20KB) thay vì maxresdefault (~347KB).
+  const thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : null;
 
   if (playing) {
     return (
       <iframe
         src={`${embedUrl}${embedUrl.includes('?') ? '&' : '?'}autoplay=1`}
         title="YouTube video"
-        className="w-full h-full"
-        style={{ aspectRatio: '16/9' }}
+        // Phủ kín ô banner (chiều cao do ô banner quyết định) để 2 cột
+        // luôn cùng chiều cao.
+        className="block w-full h-full"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
         allowFullScreen
       />
@@ -54,8 +57,10 @@ const YouTubeLazyEmbed = ({ embedUrl }) => {
   return (
     <button
       onClick={() => setPlaying(true)}
-      className="relative w-full overflow-hidden rounded-md bg-slate-900 group cursor-pointer"
-      style={{ aspectRatio: '16/9' }}
+      // h-full: nút chiếm đúng chiều cao của ô banner (trước đây đặt cứng
+      // aspect-ratio 16/9 nên thumbnail bị ngắn hơn banner trái → 2 cột lệch
+      // nhau). Bỏ aspect-ratio để ô cha (banner-cell) quyết định chiều cao.
+      className="relative block w-full h-full overflow-hidden rounded-md bg-slate-900 group cursor-pointer"
       aria-label="Phát video YouTube"
     >
       {thumbnailUrl && (
@@ -64,8 +69,10 @@ const YouTubeLazyEmbed = ({ embedUrl }) => {
           alt="YouTube video thumbnail"
           className="absolute inset-0 w-full h-full"
           eager
+          loading="lazy"
           skeletonClassName="bg-slate-800"
-          imgStyle={{ objectFit: 'cover', width: '100%', height: '100%' }}
+          objectFit="contain-full"
+          imgStyle={{ width: '100%', height: '100%' }}
         />
       )}
       {/* Play button overlay */}
@@ -112,45 +119,33 @@ const Home = () => {
   // Fetch sliders
   const { data: sliders } = useSliders();
 
-  // Preload hero banner images — inject <link rel="preload"> into <head>
-  // so the browser fetches them at highest priority alongside HTML parsing
-  useEffect(() => {
-    if (!sliders) return;
-    const images = [];
-    if (sliders.leftSliders) {
-      sliders.leftSliders.forEach((s) => { if (s.image) images.push(s.image); });
-    }
-    if (sliders.rightBanner?.image) {
-      images.push(sliders.rightBanner.image);
-    }
-    images.forEach((img) => {
-      const srcSet = getResponsiveImageUrl(img, [640, 1280, 1920]);
-      if (!srcSet) return;
-      const link = document.createElement('link');
-      link.rel = 'preload';
-      link.as = 'image';
-      // imagesrcset + imagesizes để browser chọn đúng biến thể theo viewport,
-      // tránh tải thêm 1 lần nữa ở <img srcset>.
-      link.setAttribute('imagesrcset', srcSet);
-      link.setAttribute('imagesizes', '(max-width: 768px) 100vw, 33vw');
-      // href = biến thể lớn nhất (fallback cho browser không hỗ trợ imagesrcset)
-      link.href = srcSet.split(', ').pop().split(' ')[0];
-      document.head.appendChild(link);
-    });
-  }, [sliders]);
+  // Preload ảnh banner được inject từ App.jsx ngay khi sliders về — xem
+  // App.jsx để ảnh tải song song với JS chunk (LCP).
 
   // Fetch categories
   const { data: categories, loading: categoriesLoading } = useCategories();
 
   // Fetch all accounts (for grouping by category)
-  const { accounts: allAccounts, loading: accountsLoading, refresh, pagination } = useAccountList({ limit: 1000, status: 'available' });
+  // Chỉ tải 200 bản ghi đầu: trước đây limit=1000 kéo 72KB dữ liệu về rồi
+  // nhóm client-side → tốn băng thông và chuỗi hoá object nặng trên main thread.
+  // Phần còn lại được tải thêm theo yêu cầu (loadMore) khi user bấm "Xem thêm".
+  const {
+    accounts: allAccounts,
+    loading: accountsLoading,
+    pagination: accountsPagination,
+    loadingMore: accountsLoadingMore,
+    loadMore: loadMoreAccounts,
+  } = useAccountList({ limit: 200, status: 'available' });
 
-  // Debug: log khi allAccounts thay đổi
+  // Số đếm tài khoản theo danh mục — lấy từ server (nhẹ, chính xác).
+  // Không đếm client-side vì danh sách đã được phân trang 200/lần.
+  const counts = useAccountCountsStore((s) => s.counts);
+  const subcounts = useAccountCountsStore((s) => s.subcounts);
+  const fetchCounts = useAccountCountsStore((s) => s.fetchCounts);
+
   useEffect(() => {
-    console.log('[Home] allAccounts length:', allAccounts.length);
-    console.log('[Home] pagination.total:', pagination?.total);
-    console.log('[Home] allAccounts:', allAccounts);
-  }, [allAccounts, pagination]);
+    fetchCounts().catch(() => {});
+  }, [fetchCounts]);
 
   // Determine data to display
   // Categories: skeleton during initial load, real data when loaded, empty state when no data
@@ -173,6 +168,14 @@ const Home = () => {
     });
     return grouped;
   }, [displayAllAccounts]);
+
+  // Còn bản ghi trên server chưa tải về không?
+  // (server chỉ trả total khi limit < 500; limit=200 → có total)
+  const hasMoreOnServer = useMemo(() => {
+    const total = accountsPagination?.total;
+    if (total === null || total === undefined) return false;
+    return displayAllAccounts.length < total;
+  }, [accountsPagination, displayAllAccounts]);
 
   // Filter accounts based on selected subcategory and filters
   const filteredAccounts = useMemo(() => {
@@ -373,11 +376,11 @@ const Home = () => {
               const rightWidth = 100 - leftWidth;
               return (
                 <div
-                  className="flex flex-col md:grid gap-1 rounded-md overflow-hidden banner-grid"
+                  className="rounded-md overflow-hidden banner-grid"
                   style={{ gridTemplateColumns: `${leftWidth}fr ${rightWidth}fr` }}
                 >
                   {/* Cột Trái — Swiper nhiều ảnh */}
-                  <div className="w-full overflow-hidden rounded-md">
+                  <div className="w-full overflow-hidden rounded-md banner-cell">
                     <Swiper
                       modules={[Autoplay, Pagination]}
                       autoplay={{ delay: 4000, disableOnInteraction: false }}
@@ -385,27 +388,33 @@ const Home = () => {
                       loop={sliders.leftSliders.length > 1}
                       className="banner-swiper h-full [&_.swiper-pagination-bullet-active]:!bg-primary [&_.swiper-pagination-bullet]:!bg-white/60"
                     >
-                      {sliders.leftSliders.map((slide) => (
-                        <SwiperSlide key={slide._id} className="!h-auto">
+                      {sliders.leftSliders.map((slide, slideIndex) => (
+                        <SwiperSlide key={slide._id} className="!h-full">
                           {slide.link ? (
-                            <a href={slide.link} target="_blank" rel="noopener noreferrer" className="block h-full">
+                            <a href={slide.link} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
                               <LazyImage
                                 src={slide.image}
                                 alt="Banner trái"
-                                className="w-full h-full object-cover"
+                                className="w-full h-full"
                                 eager
+                                fetchpriority={slideIndex === 0 ? 'high' : undefined}
                                 srcSet={getResponsiveImageUrl(slide.image, [640, 1280, 1920])}
                                 sizes="(max-width: 768px) 100vw, 33vw"
+                                objectFit="contain-full"
+                                imgStyle={{ width: '100%', height: '100%' }}
                               />
                             </a>
                           ) : (
                             <LazyImage
                               src={slide.image}
                               alt="Banner trái"
-                              className="w-full h-full object-cover"
+                              className="w-full h-full"
                               eager
+                              fetchpriority={slideIndex === 0 ? 'high' : undefined}
                               srcSet={getResponsiveImageUrl(slide.image, [640, 1280, 1920])}
                               sizes="(max-width: 768px) 100vw, 33vw"
+                              objectFit="contain-full"
+                              imgStyle={{ width: '100%', height: '100%' }}
                             />
                           )}
                         </SwiperSlide>
@@ -414,31 +423,37 @@ const Home = () => {
                   </div>
 
                   {/* Cột Phải — Ảnh hoặc YouTube */}
-                  <div className="relative w-full overflow-hidden rounded-md">
+                  <div className="relative w-full overflow-hidden rounded-md banner-cell">
                     {sliders.rightBanner?.type === 'youtube' && toYoutubeEmbedUrl(sliders.rightBanner.youtubeUrl) ? (
                       <YouTubeLazyEmbed
                         embedUrl={toYoutubeEmbedUrl(sliders.rightBanner.youtubeUrl)}
                       />
                     ) : sliders.rightBanner?.image ? (
                       sliders.rightBanner.link ? (
-                        <a href={sliders.rightBanner.link} target="_blank" rel="noopener noreferrer" className="block h-full">
+                        <a href={sliders.rightBanner.link} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
                           <LazyImage
                             src={sliders.rightBanner.image}
                             alt="Banner phải"
-                            className="w-full h-full object-cover"
+                            className="w-full h-full"
                             eager
+                            fetchpriority="high"
                             srcSet={getResponsiveImageUrl(sliders.rightBanner.image, [640, 1280, 1920])}
                             sizes="(max-width: 768px) 100vw, 67vw"
+                            objectFit="contain-full"
+                            imgStyle={{ width: '100%', height: '100%' }}
                           />
                         </a>
                       ) : (
                         <LazyImage
                           src={sliders.rightBanner.image}
                           alt="Banner phải"
-                          className="w-full h-full object-cover"
+                          className="w-full h-full"
                           eager
+                          fetchpriority="high"
                           srcSet={getResponsiveImageUrl(sliders.rightBanner.image, [640, 1280, 1920])}
                           sizes="(max-width: 768px) 100vw, 67vw"
+                          objectFit="contain-full"
+                          imgStyle={{ width: '100%', height: '100%' }}
                         />
                       )
                     ) : (
@@ -600,10 +615,11 @@ const Home = () => {
               <div className="flex flex-wrap items-end gap-2">
                 {/* Dropdown Khoảng giá */}
                 <div className="flex-1 min-w-[120px]">
-                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  <label htmlFor="filter-price" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Khoảng giá
                   </label>
                   <select
+                    id="filter-price"
                     value={filters.priceRange}
                     onChange={(e) => setFilters(prev => ({ ...prev, priceRange: e.target.value }))}
                     className="input-field w-full text-sm py-1"
@@ -618,10 +634,11 @@ const Home = () => {
 
                 {/* Dropdown Sắp xếp */}
                 <div className="flex-1 min-w-[120px]">
-                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  <label htmlFor="filter-sort" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Sắp xếp
                   </label>
                   <select
+                    id="filter-sort"
                     value={filters.sortBy}
                     onChange={(e) => setFilters(prev => ({ ...prev, sortBy: e.target.value }))}
                     className="input-field w-full text-sm py-1"
@@ -636,10 +653,11 @@ const Home = () => {
 
                 {/* Tìm kiếm tên */}
                 <div className="flex-1 min-w-[140px]">
-                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  <label htmlFor="filter-name" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Tìm tên sản phẩm
                   </label>
                   <input
+                    id="filter-name"
                     type="text"
                     value={tempSearchName}
                     onChange={(e) => setTempSearchName(e.target.value)}
@@ -650,10 +668,11 @@ const Home = () => {
 
                 {/* Mã tài khoản */}
                 <div className="flex-1 min-w-[120px]">
-                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  <label htmlFor="filter-code" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Mã tài khoản
                   </label>
                   <input
+                    id="filter-code"
                     type="text"
                     value={tempSearchCode}
                     onChange={(e) => setTempSearchCode(e.target.value)}
@@ -772,9 +791,26 @@ const Home = () => {
               )}
             </h2>
             <div className="text-xs text-slate-600 dark:text-slate-400">
-              {filteredAccounts.length > displayLimit
-                ? `Hiển thị ${displayLimit} / ${filteredAccounts.length} tài khoản`
-                : `${filteredAccounts.length} tài khoản`}
+              {(() => {
+                // Đếm đúng: nếu không có bộ lọc client-side thì dùng total từ
+                // server (danh sách đang được tải phân trang, 200/lần).
+                const hasClientFilter =
+                  filters.priceRange !== 'all' ||
+                  filters.sortBy !== 'default' ||
+                  !!filters.searchName ||
+                  !!filters.searchCode;
+                const serverTotal = accountsPagination?.total;
+                const totalKnown = !hasClientFilter && serverTotal !== null && serverTotal !== undefined;
+
+                if (totalKnown) {
+                  return displayLimit < serverTotal
+                    ? `Hiển thị ${Math.min(displayLimit, filteredAccounts.length)} / ${serverTotal} tài khoản`
+                    : `${serverTotal} tài khoản`;
+                }
+                return filteredAccounts.length > displayLimit
+                  ? `Hiển thị ${displayLimit} / ${filteredAccounts.length} tài khoản`
+                  : `${filteredAccounts.length} tài khoản`;
+              })()}
             </div>
           </div>
 
@@ -804,19 +840,36 @@ const Home = () => {
               </div>
 
               {/* Load more / Pagination */}
-              {filteredAccounts.length > displayLimit && (
+              {(filteredAccounts.length > displayLimit || hasMoreOnServer) && (
                 <div className="mt-4 flex flex-col items-center gap-3">
-                  <PaginationNav
-                    currentPage={Math.ceil(displayLimit / PAGE_SIZE)}
-                    totalPages={Math.ceil(filteredAccounts.length / PAGE_SIZE)}
-                    onPageChange={(page) => setDisplayLimit(page * PAGE_SIZE)}
-                    siblingsCount={1}
-                  />
+                  {filteredAccounts.length > displayLimit && (
+                    <PaginationNav
+                      currentPage={Math.ceil(displayLimit / PAGE_SIZE)}
+                      totalPages={Math.ceil(filteredAccounts.length / PAGE_SIZE)}
+                      onPageChange={(page) => setDisplayLimit(page * PAGE_SIZE)}
+                      siblingsCount={1}
+                    />
+                  )}
                   <button
-                    onClick={() => setDisplayLimit((prev) => prev + PAGE_SIZE)}
-                    className="btn-secondary text-sm px-6 py-2"
+                    onClick={() => {
+                      // Nếu đã hiển thị hết phần đang có trong RAM → tải thêm
+                      // trang tiếp theo từ server; ngược lại chỉ mở rộng
+                      // hiển thị client-side.
+                      if (filteredAccounts.length <= displayLimit) {
+                        loadMoreAccounts();
+                        setDisplayLimit((prev) => prev + PAGE_SIZE);
+                      } else {
+                        setDisplayLimit((prev) => prev + PAGE_SIZE);
+                      }
+                    }}
+                    disabled={accountsLoadingMore}
+                    className="btn-secondary text-sm px-6 py-2 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    Xem thêm ({Math.min(PAGE_SIZE, filteredAccounts.length - displayLimit)} tiếp)
+                    {accountsLoadingMore
+                      ? 'Đang tải...'
+                      : filteredAccounts.length > displayLimit
+                        ? `Xem thêm (${Math.min(PAGE_SIZE, filteredAccounts.length - displayLimit)} tiếp)`
+                        : 'Xem thêm'}
                   </button>
                 </div>
               )}

@@ -4,7 +4,7 @@ import api from '../utils/api';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
-import { FiSearch, FiEye, FiCheck, FiX, FiRefreshCw, FiCreditCard, FiPhone, FiCopy } from 'react-icons/fi';
+import { FiSearch, FiEye, FiCheck, FiX, FiRefreshCw, FiCreditCard, FiPhone, FiCopy, FiGlobe } from 'react-icons/fi';
 import { TableSkeleton, FilterSkeleton } from '../components/SkeletonLoader';
 
 export default function Deposits() {
@@ -12,6 +12,7 @@ export default function Deposits() {
   const [activeTab, setActiveTab] = useState('bank'); // 'bank' | 'card'
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [ipFilter, setIpFilter] = useState('');
   const [selectedDeposit, setSelectedDeposit] = useState(null);
 
   // Pending counts for both tabs
@@ -25,11 +26,12 @@ export default function Deposits() {
 
   // Bank deposits query
   const { data: bankDepositsData, isLoading: bankLoading, refetch: refetchBank } = useQuery({
-    queryKey: ['admin-deposits', 'bank', statusFilter, searchTerm],
+    queryKey: ['admin-deposits', 'bank', statusFilter, searchTerm, ipFilter],
     queryFn: async () => {
       let url = '/admin/deposits?depositMethod=bank&';
       if (statusFilter) url += `status=${statusFilter}&`;
-      if (searchTerm) url += `search=${searchTerm}&`;
+      if (searchTerm) url += `search=${encodeURIComponent(searchTerm)}&`;
+      if (ipFilter) url += `ip=${encodeURIComponent(ipFilter.trim())}&`;
       const { data } = await api.get(url);
       return data;
     },
@@ -38,11 +40,12 @@ export default function Deposits() {
 
   // Card deposits query
   const { data: cardDepositsData, isLoading: cardLoading, refetch: refetchCard } = useQuery({
-    queryKey: ['admin-deposits', 'card', statusFilter, searchTerm],
+    queryKey: ['admin-deposits', 'card', statusFilter, searchTerm, ipFilter],
     queryFn: async () => {
       let url = '/admin/deposits?depositMethod=card&';
       if (statusFilter) url += `status=${statusFilter}&`;
-      if (searchTerm) url += `search=${searchTerm}&`;
+      if (searchTerm) url += `search=${encodeURIComponent(searchTerm)}&`;
+      if (ipFilter) url += `ip=${encodeURIComponent(ipFilter.trim())}&`;
       const { data } = await api.get(url);
       return data;
     },
@@ -186,8 +189,18 @@ export default function Deposits() {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Tìm kiếm yêu cầu..."
+            placeholder="Tìm kiếm yêu cầu (username, mã GD, serial, IP)..."
             className="input-field pl-11"
+          />
+        </div>
+        <div className="relative w-56">
+          <FiGlobe className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            value={ipFilter}
+            onChange={(e) => setIpFilter(e.target.value)}
+            placeholder="Lọc theo IP"
+            className="input-field pl-10"
           />
         </div>
         <select
@@ -234,6 +247,7 @@ export default function Deposits() {
                 </>
               )}
               <th>Số tiền</th>
+              <th>IP</th>
               <th>Trạng thái</th>
               <th>Thời gian</th>
               <th>Thao tác</th>
@@ -280,6 +294,20 @@ export default function Deposits() {
                     {deposit.amount?.toLocaleString('vi-VN')}đ
                   </td>
                   <td>
+                    {deposit.ipAddress ? (
+                      <button
+                        onClick={() => copyToClipboard(deposit.ipAddress, 'IP')}
+                        className="font-mono text-xs text-slate-300 hover:text-cyan-400 transition-colors flex items-center gap-1"
+                        title="Copy IP"
+                      >
+                        {deposit.ipAddress}
+                        <FiCopy className="w-3 h-3" />
+                      </button>
+                    ) : (
+                      <span className="text-xs text-slate-500">N/A</span>
+                    )}
+                  </td>
+                  <td>
                     <span className={`badge ${getStatusBadge(deposit.status).class}`}>
                       {getStatusBadge(deposit.status).text}
                     </span>
@@ -320,7 +348,7 @@ export default function Deposits() {
               ))
             ) : (
               <tr>
-                <td colSpan="8" className="text-center text-slate-400 py-8">
+                <td colSpan="9" className="text-center text-slate-400 py-8">
                   {activeTab === 'bank' ? 'Chưa có yêu cầu nạp ngân hàng nào' : 'Chưa có yêu cầu nạp thẻ cào nào'}
                 </td>
               </tr>
@@ -358,6 +386,33 @@ export default function Deposits() {
                   <p><span className="text-slate-400">Tên:</span> {selectedDeposit.userId?.fullName || selectedDeposit.userId?.username}</p>
                   <p><span className="text-slate-400">Email:</span> {selectedDeposit.userId?.email || 'N/A'}</p>
                   <p><span className="text-slate-400">SĐT:</span> {selectedDeposit.userId?.phone || 'N/A'}</p>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-700 pt-4">
+                <h3 className="font-semibold text-slate-100 mb-3">Thông tin chống spam</h3>
+                <div className="space-y-2 text-sm">
+                  <p className="flex items-center gap-2">
+                    <span className="text-slate-400">IP tạo lệnh nạp:</span>
+                    {selectedDeposit.ipAddress ? (
+                      <button
+                        onClick={() => copyToClipboard(selectedDeposit.ipAddress, 'IP')}
+                        className="font-mono text-cyan-400 hover:text-cyan-300 transition-colors flex items-center gap-1"
+                        title="Copy IP"
+                      >
+                        {selectedDeposit.ipAddress}
+                        <FiCopy className="w-3 h-3" />
+                      </button>
+                    ) : (
+                      <span className="text-slate-500">N/A (lệnh nạp tạo trước khi ghi nhận IP)</span>
+                    )}
+                  </p>
+                  {selectedDeposit.ipUserAgent && (
+                    <p className="break-all">
+                      <span className="text-slate-400">Thiết bị:</span>{' '}
+                      <span className="font-mono text-xs text-slate-300">{selectedDeposit.ipUserAgent}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 

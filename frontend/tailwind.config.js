@@ -14,9 +14,11 @@ export default {
           lighter: '#1E293B',
         },
         primary: {
-          DEFAULT: '#3B82F6',  // xanh dương pastel — màu thương hiệu 🟦
+          // #2563EB: chữ trắng trên nền primary = 5.17:1 (đạt WCAG AA).
+          // #3B82F6 cũ chỉ 3.68:1 → fail color-contrast ở 26 phần tử.
+          DEFAULT: '#2563EB',
           light:  '#93C5FD',
-          dark:   '#1D4ED8',
+          dark:   '#1E40AF',
         },
         price: {
           DEFAULT: '#EAB308',  // vàng — dùng cho giá/khuyến mãi 🟨

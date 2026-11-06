@@ -11,26 +11,29 @@ import Loading from './components/Loading';
 import { useThemeStore } from './store/themeStore';
 import { useSettingsStore } from './store/data/settingsStore';
 import { useCartStore } from './store/cartStore';
-import { getImageUrl } from './utils/api';
+import { getImageUrl, getResponsiveImageUrl } from './utils/api';
 import { syncCacheVersion, stripCacheBustParam } from './utils/cacheVersion';
 import { takePendingAuthRedirect } from './utils/pendingAuthRedirect';
 import { useAuthStore } from './store/authStore';
 
-// Pages — Home is lazy-loaded to reduce initial bundle
+// Pages — tất cả đều lazy-load để main bundle chỉ chứa shell + shared deps.
+// Trước đây chỉ Home được lazy → các route khác import tĩnh kéo theo
+// react-custom-roulette (SpinWheel), framer-motion, react-confetti, swiper,
+// yup, date-fns vào main chunk (866 KB).
 const Home = lazy(() => import('./pages/Home'));
-import Shop from './pages/Shop';
-import AccountDetail from './pages/AccountDetail';
-import Cart from './pages/Cart';
-import Checkout from './pages/Checkout';
-import Profile from './pages/Profile';
-import SpinWheel from './pages/SpinWheel';
-import SpinHistory from './pages/SpinHistory';
-import Guide from './pages/Guide';
-import Privacy from './pages/Privacy';
-import Terms from './pages/Terms';
-import FAQ from './pages/FAQ';
-import AccountSecurity from './pages/AccountSecurity';
-import CardDeposit from './pages/CardDeposit';
+const Shop = lazy(() => import('./pages/Shop'));
+const AccountDetail = lazy(() => import('./pages/AccountDetail'));
+const Cart = lazy(() => import('./pages/Cart'));
+const Checkout = lazy(() => import('./pages/Checkout'));
+const Profile = lazy(() => import('./pages/Profile'));
+const SpinWheel = lazy(() => import('./pages/SpinWheel'));
+const SpinHistory = lazy(() => import('./pages/SpinHistory'));
+const Guide = lazy(() => import('./pages/Guide'));
+const Privacy = lazy(() => import('./pages/Privacy'));
+const Terms = lazy(() => import('./pages/Terms'));
+const FAQ = lazy(() => import('./pages/FAQ'));
+const AccountSecurity = lazy(() => import('./pages/AccountSecurity'));
+const CardDeposit = lazy(() => import('./pages/CardDeposit'));
 
 // Scroll to top on route change
 function ScrollToTop() {
@@ -252,6 +255,44 @@ function App() {
     };
   }, []);
 
+  // ── Preload hero banner ───────────────────────────────────────────────────
+  // Ảnh banner là LCP element. Inject <link rel="preload"> NGAY khi dữ liệu
+  // sliders về (không đợi Home render) → ảnh tải song song với JS chunk
+  // thay vì phải chờ React render xong mới bắt đầu.
+  const sliders = useSettingsStore((s) => s.sliders);
+
+  useEffect(() => {
+    if (!sliders) return;
+
+    const images = [];
+    if (Array.isArray(sliders.leftSliders)) {
+      sliders.leftSliders.forEach((s) => { if (s?.image) images.push(s.image); });
+    }
+    if (sliders.rightBanner?.image) images.push(sliders.rightBanner.image);
+
+    images.forEach((img) => {
+      const srcSet = getResponsiveImageUrl(img, [640, 1280, 1920]);
+      if (!srcSet) return;
+
+      // Không preload trùng lặp nếu effect chạy lại (poll settings).
+      const id = `banner-preload-${img}`;
+      if (document.getElementById(id)) return;
+
+      const link = document.createElement('link');
+      link.id = id;
+      link.rel = 'preload';
+      link.as = 'image';
+      link.type = 'image/webp';
+      // imagesrcset + imagesizes để browser chọn đúng biến thể theo viewport,
+      // tránh tải thêm 1 lần nữa ở <img srcset>.
+      link.setAttribute('imagesrcset', srcSet);
+      link.setAttribute('imagesizes', '(max-width: 768px) 100vw, 33vw');
+      // href = biến thể lớn nhất (fallback cho browser không hỗ trợ imagesrcset)
+      link.href = srcSet.split(', ').pop().split(' ')[0];
+      document.head.appendChild(link);
+    });
+  }, [sliders]);
+
   // Drawer state
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -394,12 +435,15 @@ function App() {
       />
 
       <main className="flex-grow my-4">
+        {/* Một Suspense duy nhất bao quanh toàn bộ Routes — mọi page đều
+            lazy-load nên cần fallback chung. */}
+        <Suspense fallback={<Loading />}>
         <Routes>
           {/* Redirect old orders routes (root-level /orders/:id) to Profile?view=order-detail */}
           <Route path="/orders/:id" element={<RedirectWithParams paramName="orderId" />} />
 
           {/* Public Routes */}
-          <Route path="/" element={<Suspense fallback={<Loading />}><Home /></Suspense>} />
+          <Route path="/" element={<Home />} />
           <Route path="/shop" element={<Shop />} />
           <Route path="/shop/:categorySlug" element={<Shop />} />
           <Route path="/account/:id" element={<AccountDetail onOpenAuth={handleOpenAuth} />} />
@@ -461,6 +505,7 @@ function App() {
           <Route path="/profile/purchased-accounts" element={<Navigate to="/profile?view=purchased-accounts" replace />} />
           <Route path="/profile/policies" element={<Navigate to="/profile?view=policies" replace />} />
         </Routes>
+        </Suspense>
       </main>
 
       <Footer />
