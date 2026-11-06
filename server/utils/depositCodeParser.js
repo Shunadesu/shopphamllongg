@@ -203,18 +203,28 @@ export function parseDepositCode(content) {
   // cũng là "chữ HOA + số" nhưng thực ra là format Techcombank).
   const tokens = trimmed.split(/\s+/).filter(Boolean);
   const isMachineRef = (t) => /^(?=.*[A-Z])(?=.*\d)[A-Z0-9]{6,}$/.test(t);
+  const isSixDigits = (t) => /^\d{6}$/.test(t);
 
-  // Ưu tiên: token 6 số đứng NGAY SAU token máy sinh.
-  for (let i = 1; i < tokens.length; i++) {
-    if (isMachineRef(tokens[i - 1]) && /^\d{6}$/.test(tokens[i])) {
-      return tokens[i];
-    }
-  }
-
-  // Dự phòng: content có token máy sinh nhưng mã nạp không nằm ngay sau nó
-  // (vd: "ZP263100611362 1999000 677567") → lấy token 6 số cuối cùng.
   if (tokens.some(isMachineRef)) {
-    const codes = tokens.filter((t) => /^\d{6}$/.test(t));
+    // Ưu tiên 1: mã nạp 6 số đứng NGAY SAU token máy sinh.
+    //   "ZP263101138755 556308" → "556308"
+    for (let i = 1; i < tokens.length; i++) {
+      if (isMachineRef(tokens[i - 1]) && isSixDigits(tokens[i])) {
+        return tokens[i];
+      }
+    }
+
+    // Ưu tiên 2: mã nạp 6 số đứng NGAY TRƯỚC token máy sinh.
+    //   "556308 ZP263101138755" → "556308"
+    for (let i = 1; i < tokens.length; i++) {
+      if (isMachineRef(tokens[i]) && isSixDigits(tokens[i - 1])) {
+        return tokens[i - 1];
+      }
+    }
+
+    // Dự phòng: content có token máy sinh nhưng mã nạp không nằm ngay cạnh nó
+    // (vd: "ZP263100611362 1999000 677567") → lấy token 6 số cuối cùng.
+    const codes = tokens.filter(isSixDigits);
     if (codes.length > 0) {
       return codes[codes.length - 1];
     }

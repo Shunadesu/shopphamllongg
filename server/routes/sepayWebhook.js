@@ -110,6 +110,9 @@ function describeMatch(matchType, parsed) {
   if (matchType === 'amount-fallback') {
     return `amount fallback (${AMOUNT_MATCH_WINDOW_MINUTES} phút gần đây)`;
   }
+  if (matchType === 'amount-fallback-same-user') {
+    return `amount fallback, cùng user (${AMOUNT_MATCH_WINDOW_MINUTES} phút gần đây)`;
+  }
   if (typeof parsed === 'string') {
     return `code="${parsed}"`;
   }
@@ -163,6 +166,56 @@ async function findPendingDepositsByAmount(amount, accountNumber) {
     .sort({ createdAt: -1 })
     .limit(50)
     .populate('userId', 'username isActive');
+}
+
+// === Helper: tìm deposit pending theo mã nạp 6 số ===
+/**
+ * Escape các ký tự đặc biệt của RegExp để dựng pattern an toàn từ chuỗi user input.
+ * @param {string} str
+ * @returns {string}
+ */
+function escapeRegExp(str) {
+  return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Tìm DepositRequest pending (bank) theo mã nạp 6 số.
+ *
+ * Thử khớp CHÍNH XÁC trước (nhanh, dùng index nếu có). Nếu không tìm được thì
+ * thử khớp MỀM: bỏ khoảng trắng thừa + không phân biệt hoa/thường — phòng
+ * trường hợp gateway lưu transferNote lệch (ví dụ " 556308 " hoặc "556308 ").
+ *
+ * @param {string} code Mã nạp 6 số
+ * @returns {Promise<Object|null>} DepositRequest document hoặc null
+ */
+async function findPendingDepositByCode(code) {
+  if (!code || typeof code !== 'string') return null;
+
+  const base = {
+    status: 'pending',
+    depositMethod: 'bank',
+  };
+
+  // 1) Khớp chính xác
+  let candidate = await DepositRequest.findOne({
+    ...base,
+    transferNote: code,
+  })
+    .sort({ createdAt: 1 })
+    .populate('userId', 'username isActive');
+
+  if (candidate) return candidate;
+
+  // 2) Khớp mềm: bỏ khoảng trắng + không phân biệt hoa/thường
+  const loosePattern = new RegExp(`^\\s*${escapeRegExp(code)}\\s*$`, 'i');
+  candidate = await DepositRequest.findOne({
+    ...base,
+    transferNote: loosePattern,
+  })
+    .sort({ createdAt: 1 })
+    .populate('userId', 'username isActive');
+
+  return candidate;
 }
 
 // === POST /payinwebhook ===
@@ -238,11 +291,33 @@ router.post('/payinwebhook', verifyApiKey, async (req, res) => {
   }
 
   // === Parse content → 6-digit code OR BIDV format ===
-  const parsed = parseDepositCode(payload.content);
+  // Một số gateway (BIDV) gửi nội dung CK ở `content`, số khác lại nhét vào
+  // `description` (vd: "BankAPINotify ZP263101138755 556308"). Thử lần lượt
+  // các nguồn cho tới khi ra mã nạp.
+  let parsed = null;
+  let parsedFrom = null;
+  for (const [field, value] of [
+    ['content', payload.content],
+    ['description', payload.description],
+    ['code', payload.code],
+  ]) {
+    if (!value || typeof value !== 'string') continue;
+    const result = parseDepositCode(value);
+    if (result) {
+      parsed = result;
+      parsedFrom = field;
+      break;
+    }
+  }
   if (!parsed) {
     console.warn(
-      `[SePay Webhook] Cannot parse deposit code from content: "${payload.content}" (id=${sepayId}) ` +
+      `[SePay Webhook] Cannot parse deposit code from content: "${payload.content}" ` +
+      `(description="${payload.description || ''}") (id=${sepayId}) ` +
       `→ thử fallback match theo số tiền`
+    );
+  } else if (parsedFrom && parsedFrom !== 'content') {
+    console.log(
+      `[SePay Webhook] Parsed deposit code from "${parsedFrom}": "${payload[parsedFrom]}" (id=${sepayId})`
     );
   }
 
@@ -251,25 +326,13 @@ router.post('/payinwebhook', verifyApiKey, async (req, res) => {
   let matchType = 'unknown';
 
   if (typeof parsed === 'string') {
-    // 6-digit code → match exact transferNote
+    // 6-digit code → match transferNote (chính xác trước, sau đó khớp mềm)
     matchType = '6-digit-code';
-    candidate = await DepositRequest.findOne({
-      status: 'pending',
-      depositMethod: 'bank',
-      transferNote: parsed,
-    })
-      .sort({ createdAt: 1 })
-      .populate('userId', 'username isActive');
+    candidate = await findPendingDepositByCode(parsed);
   } else if (parsed?.type === 'scan-qr') {
-    // BIDV "Scan QR" format → match exact transferNote (giống 6-digit-code)
+    // BIDV "Scan QR" format → match transferNote (giống 6-digit-code)
     matchType = 'scan-qr-format';
-    candidate = await DepositRequest.findOne({
-      status: 'pending',
-      depositMethod: 'bank',
-      transferNote: parsed.code,
-    })
-      .sort({ createdAt: 1 })
-      .populate('userId', 'username isActive');
+    candidate = await findPendingDepositByCode(parsed.code);
   } else if (parsed?.type === 'bidv' || parsed?.type === 'techcombank') {
     // BIDV / Techcombank format → find user by username, then match amount + recent pending
     matchType = `${parsed.type}-format`;
@@ -329,23 +392,44 @@ router.post('/payinwebhook', verifyApiKey, async (req, res) => {
         `(SePay id=${sepayId})`
       );
     } else if (amountMatches.length > 1) {
-      console.warn(
-        `[SePay Webhook] Ambiguous amount match: ${amountMatches.length} pending deposits cùng số tiền ` +
-        `${payload.transferAmount.toLocaleString('vi-VN')}đ → KHÔNG tự approve (SePay id=${sepayId})`
-      );
-      await updateWebhookLog(logId, {
-        processingStatus: 'ignored',
-        processingNote:
-          `Ambiguous amount match: ${amountMatches.length} pending deposits với số tiền ` +
-          `${payload.transferAmount} (đề tạo trong ${AMOUNT_MATCH_WINDOW_MINUTES} phút) — cần admin xử lý tay`
-      });
-      notifyIgnored(payload, 'ambiguous_amount', {
-        amount: payload.transferAmount,
-        matchCount: amountMatches.length,
-        depositIds: amountMatches.map((d) => d._id.toString()),
-        matchType: 'amount-fallback',
-      });
-      return res.json({ success: true, ignored: 'ambiguous_amount' });
+      // Nhiều deposit pending cùng số tiền. Nếu TẤT CẢ thuộc cùng một user
+      // (user bấm "tạo yêu cầu nạp" nhiều lần rồi chuyển 1 lần) → chọn yêu cầu
+      // MỚI NHẤT của user đó: cộng tiền cho đúng user là an toàn dù duyệt yêu cầu
+      // nào. Nếu thuộc nhiều user khác nhau → KHÔNG tự approve, báo admin.
+      const ownerIds = [
+        ...new Set(
+          amountMatches.map((d) => d.userId?._id?.toString() || 'no-user')
+        ),
+      ];
+
+      if (ownerIds.length === 1 && ownerIds[0] !== 'no-user') {
+        candidate = amountMatches[0]; // query đã sort createdAt desc → mới nhất
+        matchType = 'amount-fallback-same-user';
+        console.log(
+          `[SePay Webhook] ↩ Fallback theo số tiền (cùng user): ${payload.transferAmount.toLocaleString('vi-VN')}đ ` +
+          `→ deposit #${candidate._id.toString().slice(-8).toUpperCase()} ` +
+          `(user=${candidate.userId?.username}, ${amountMatches.length} yêu cầu cùng số tiền, chọn mới nhất) ` +
+          `(SePay id=${sepayId})`
+        );
+      } else {
+        console.warn(
+          `[SePay Webhook] Ambiguous amount match: ${amountMatches.length} pending deposits cùng số tiền ` +
+          `${payload.transferAmount.toLocaleString('vi-VN')}đ → KHÔNG tự approve (SePay id=${sepayId})`
+        );
+        await updateWebhookLog(logId, {
+          processingStatus: 'ignored',
+          processingNote:
+            `Ambiguous amount match: ${amountMatches.length} pending deposits với số tiền ` +
+            `${payload.transferAmount} (đề tạo trong ${AMOUNT_MATCH_WINDOW_MINUTES} phút) — cần admin xử lý tay`
+        });
+        notifyIgnored(payload, 'ambiguous_amount', {
+          amount: payload.transferAmount,
+          matchCount: amountMatches.length,
+          depositIds: amountMatches.map((d) => d._id.toString()),
+          matchType: 'amount-fallback',
+        });
+        return res.json({ success: true, ignored: 'ambiguous_amount' });
+      }
     }
   }
 
@@ -639,6 +723,7 @@ async function sendIgnoredDepositNotification(payload, reason, extra = {}) {
         header = '⚠️ <b>BỎ QUA — KHÔNG PARSE ĐƯỢC (SePay)</b>';
         suggestion =
           '⚠️ Format nội dung CK không nằm trong các pattern đã biết.\n' +
+          '   • Đã thử cả `content`, `description` và `code` của payload.\n' +
           '   • Có thể cần cập nhật parseDepositCode() nếu ngân hàng đổi format.';
         break;
       default:
@@ -665,8 +750,7 @@ async function sendIgnoredDepositNotification(payload, reason, extra = {}) {
           `\n<b>Lý do:</b> Không parse được nội dung chuyển khoản — không match 6-digit code, BIDV format hay Techcombank format.`,
           `<b>Đã thử fallback theo số tiền:</b> không tìm được yêu cầu nạp pending nào khớp số tiền.`
         );
-        break;
-      case 'ambiguous_amount':
+        break;      case 'ambiguous_amount':
         detailLines.push(
           `\n<b>Lý do:</b> Không tìm được mã nạp, mà có <b>${extra.matchCount || 'N/A'}</b> yêu cầu nạp pending cùng số tiền.`,
           `<b>Số tiền nhận:</b> ${formatVnd(extra.amount)}`,
