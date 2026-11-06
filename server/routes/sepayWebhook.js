@@ -4,7 +4,9 @@ import mongoose from 'mongoose';
 import DepositRequest from '../models/DepositRequest.js';
 import WebhookLog from '../models/WebhookLog.js';
 import User from '../models/User.js';
+import BankAccount from '../models/BankAccount.js';
 import { autoApproveDeposit } from '../utils/depositApproval.js';
+import { parseDepositCode } from '../utils/depositCodeParser.js';
 
 const router = express.Router();
 
@@ -25,6 +27,13 @@ console.log(`[SePay Webhook] CWD=${process.cwd()}`);
 
 // Amount tolerance khi match với deposit pending (giống emailChecker cũ).
 const AMOUNT_TOLERANCE = 1000;
+
+// Khoảng thời gian (phút) để fallback match theo SỐ TIỀN khi không parse được mã nạp.
+// Ví dụ nội dung CK = "ZP263100611362 677567" nhưng user quên gõ mã nạp,
+// hoặc ngân hàng bổ sung mã máy sinh làm nội dung bị lẫn → không match theo mã.
+// Fallback: tìm deposit pending bank có amount khớp (±AMOUNT_TOLERANCE) tạo gần đây.
+// Giữ cửa sổ hẹp (30 phút) để giảm rủi ro khớp nhầm vào yêu cầu nạp cũ đã bỏ quên.
+const AMOUNT_MATCH_WINDOW_MINUTES = 30;
 
 // === Webhook logging helpers ===
 /**
@@ -90,181 +99,70 @@ router.get('/payinwebhook/debug', (req, res) => {
   });
 });
 
-// === Helper: parse transferNote as 6-digit deposit code ===
-// Accept format:
-// - Exactly "123456" (new format)
-// - "123456 ..." or "123456-..." (code at start, legacy)
-// - 6-digit code at end OR before ".CT" (new BIDV format)
-// Reject:
-// - Old format like "username 252000" (has letters and space)
-// - "NAP 123456" or other patterns with letters before code
+// === Helper: mô tả nguồn match để log / Telegram ===
 /**
- * Parse deposit code from webhook content
- * Returns: string (6-digit code) | object { type, username, amount } | object { type: 'scan-qr', code } | null
+ * Tạo chuỗi mô tả ngắn gọn cách match được deposit, dùng cho log và thông báo Telegram.
+ * @param {string} matchType
+ * @param {string|Object|null} parsed Kết quả parseDepositCode
+ * @returns {string}
  */
-function parseDepositCode(content) {
-  if (!content || typeof content !== 'string') return null;
-
-  const trimmed = content.trim();
-
-  // Case 0 (NEW): BIDV semicolon-separated format
-  // Example: "BIDV;96247B6RW7;544587"
-  // Pattern: BIDV;{subAccount};{6-digit-code}
-  // The last token after the final semicolon is the deposit code.
-  const bidvSemicolonMatch = trimmed.match(/^BIDV;[^;]+;(\d{6})$/);
-  if (bidvSemicolonMatch) {
-    return bidvSemicolonMatch[1];
+function describeMatch(matchType, parsed) {
+  if (matchType === 'amount-fallback') {
+    return `amount fallback (${AMOUNT_MATCH_WINDOW_MINUTES} phút gần đây)`;
   }
-
-  // Case 1: Content is exactly 6 digits (new format)
-  if (/^\d{6}$/.test(trimmed)) {
-    return trimmed;
+  if (typeof parsed === 'string') {
+    return `code="${parsed}"`;
   }
-
-  // Case 2 (NEW): 6-digit code at end of content OR immediately before ".CT"
-  // Handles new BIDV format (the deposit code is always the LAST 6-digit number
-  // that's either at end-of-string or followed by ".CT").
-  // Example A: "151015889347 0866586858 388887" → "388887"  (at end, all-numeric)
-  // Example B: "MBVCB.16464989264.754632.388044.CT tu 1069..." → "388044"  (before .CT)
-  // The `(?!\d)` ensures we don't pick a 6-digit run that's part of a longer number
-  // (e.g., "12345678" should NOT match "123456").
-  //
-  // IMPORTANT: For the "all-numeric ending" case, we require the content to have
-  // NO alphabetic characters — otherwise we'd accidentally pick the trailing
-  // amount from old-format content like "username 252000".
-  // The "before .CT" case is safe regardless of alphabetic chars because ".CT"
-  // is a strong marker.
-  const ctMatch = trimmed.match(/(?:^|\D)(\d{6})(?=\.CT)(?!\d)/);
-  if (ctMatch) {
-    return ctMatch[1];
+  if (parsed?.type === 'scan-qr') {
+    return `Scan QR code="${parsed.code}"`;
   }
-  if (!/[a-zA-Z]/.test(trimmed)) {
-    // Tìm tất cả cụm 6 số đứng độc lập, lấy cụm cuối cùng
-    const allMatches = trimmed.match(/(?:^|\D)(\d{6})(?!\d)/g);
-    if (allMatches && allMatches.length > 0) {
-      const lastMatch = allMatches[allMatches.length - 1];
-      // Strip leading non-digit (nếu có) rồi lấy 6 số
-      return lastMatch.match(/\d{6}$/)[0];
+  if (parsed?.type) {
+    return `${parsed.type} username="${parsed.username}", amount=${parsed.amount}`;
+  }
+  return 'unknown';
+}
+
+// === Helper: fallback match theo SỐ TIỀN ===
+/**
+ * Tìm các DepositRequest pending (bank) có số tiền khớp `amount` (± AMOUNT_TOLERANCE)
+ * được tạo trong `AMOUNT_MATCH_WINDOW_MINUTES` phút gần đây.
+ *
+ * Dùng làm fallback khi không tìm được deposit theo mã nạp 6 số — ví dụ nội dung
+ * CK bị ngân hàng/SePay thêm mã máy sinh ("ZP263100611362") làm mã nạp bị lẫn.
+ *
+ * @param {number} amount Số tiền thực nhận
+ * @param {string} [accountNumber] Số tài khoản nhận (để lọc theo bank account)
+ * @returns {Promise<Array>} Danh sách deposit khớp (rỗng nếu không có)
+ */
+async function findPendingDepositsByAmount(amount, accountNumber) {
+  if (typeof amount !== 'number' || amount <= 0) return [];
+
+  const since = new Date(Date.now() - AMOUNT_MATCH_WINDOW_MINUTES * 60 * 1000);
+
+  const query = {
+    status: 'pending',
+    depositMethod: 'bank',
+    createdAt: { $gte: since },
+    // Lọc số tiền ngay trong DB để không bị giới hạn bởi .limit()
+    amount: { $gte: amount - AMOUNT_TOLERANCE, $lte: amount + AMOUNT_TOLERANCE },
+  };
+
+  // Lọc theo bank account để tránh khớp nhầm sang tài khoản nhận khác.
+  if (accountNumber) {
+    const bankAccounts = await BankAccount.find({ accountNumber: String(accountNumber) })
+      .select('_id')
+      .lean();
+    if (bankAccounts.length > 0) {
+      query.bankAccountId = { $in: bankAccounts.map((b) => b._id) };
     }
   }
 
-  // Case 2.5: Pattern with dash separator "text - 6digit" (e.g., "QR - 574948")
-  // The dash is a strong indicator that the 6-digit is a code, not an amount.
-  // This handles new BIDV format where content is prefixed with "QR - " or similar.
-  const dashCodeMatch = trimmed.match(/-\s*(\d{6})(?!\d)$/);
-  if (dashCodeMatch) {
-    return dashCodeMatch[1];
-  }
-
-  // Case 2.6: Short uppercase prefix + space + 6-digit code
-  // Examples: "IBFT 239268", "QR 574948", "NAP 388887"
-  // The prefix is 2-6 UPPERCASE letters (BIDV transfer method codes like IBFT, QR, NAP, CT, FT).
-  // This differs from old format "username 252000" where the prefix is typically lowercase
-  // or longer than 6 characters.
-  const shortPrefixMatch = trimmed.match(/^([A-Z]{2,6})\s+(\d{6})$/);
-  if (shortPrefixMatch) {
-    return shortPrefixMatch[2];
-  }
-
-  // Case 2.7 (NEW): BIDV "Scan QR" format with optional trailing reference number
-  // Example: "Scan QR 066023 2109693809825206272"
-  // Pattern: "Scan QR" + 6-digit code + optional (space + reference)
-  // The "Scan QR" prefix is BIDV's marker for QR-code-based payments (NAP qua QR).
-  // Trailing reference number is the bank's internal transaction ID — bỏ qua, chỉ lấy 6-digit.
-  // Distinct from Case 2.6 vì Case 2.6 chỉ match đúng 2 token, còn format này có 3-4 token.
-  // Lưu ý: KHÔNG match "QR - thanhdrums9 252000" (old format có dấu "-" và username viết thường).
-  const scanQrMatch = trimmed.match(/^Scan\s+QR\s+(\d{6})(?:\s+\S+)?$/);
-  if (scanQrMatch) {
-    return {
-      type: 'scan-qr',
-      code: scanQrMatch[1],
-    };
-  }
-
-  // Case 2.8 (NEW): Bank short prefix + 6-digit code (UPPERCASE only, optional space).
-  // Bổ sung cho Case 2.6 (chỉ match UPPERCASE + có space). Mục đích bắt các format:
-  //   "SE123456" / "SE 123456" — SePay default payment code prefix
-  //   "MB123456" / "MB 123456" — MBBank chuyển khoản QR
-  //   "VCB123456" / "VCB 123456" — Vietcombank
-  //   "BIDV123456" / "BID 123456" / "BIDV 123456" — BIDV
-  //   "ACB123456" / "ACB 123456" — ACB
-  //   "TPB123456" / "TPB 123456" — TPBank
-  //   "VPB123456" / "VPB 123456" — VPBank
-  //   "ICB123456" / "ICB 123456" — VietinBank
-  //   "TCB123456" / "TCB 123456" — Techcombank
-  // Whitelist bank codes thay vì match bất kỳ 2-6 chữ cái nào — tránh match nhầm với
-  // username (vd: user tên "mb" gõ "mb 252000" sẽ KHÔNG match ở đây, an toàn).
-  // UPPERCASE-only vì ngân hàng gửi prefix viết HOA; nếu user gõ thường thì rơi vào
-  // reject (chấp nhận miss thay vì risk approve nhầm).
-  const bankPrefixMatch = trimmed.match(/^(?:SE|SEPAY|MB|VCB|BIDV?|ACB|TPB|VPB|ICB|TCB)\s*(\d{6})$/);
-  if (bankPrefixMatch) {
-    return bankPrefixMatch[1];
-  }
-
-  // Case 3: Content starts with 6 digits followed by space or dash
-  // Legacy format: "997044 FT26282279126632" or "997044-abc"
-  // (We check this AFTER the new-format cases so that mixed content
-  //  like "123456 foo 654321" correctly picks "654321".)
-  const match = trimmed.match(/^(\d{6})[\s\-]/);
-  if (match) {
-    return match[1];
-  }
-
-  // Case 4: BIDV long format "MBVCB.xxx.username amount.CT ..."
-  // Example: "MBVCB.16457010956.559317.daihung112 2600000.CT tu 1019322584 NGUYEN VAN TAM toi 96247B6RW7 PHAM VAN"
-  const bidvMatch = trimmed.match(/\.([a-zA-Z0-9_]+)\s+(\d+)\.CT/);
-  if (bidvMatch) {
-    return {
-      type: 'bidv',
-      username: bidvMatch[1],
-      amount: parseInt(bidvMatch[2], 10),
-    };
-  }
-
-  // Case 5: Techcombank format "username amount FTxxx"
-  // Example: "duongphuchung 252000 FT26282279126632"
-  // Pattern: <username> <amount> FT<digits>
-  const techcombankMatch = trimmed.match(/^([a-zA-Z0-9_]+)\s+(\d+)\s+FT\d+$/);
-  if (techcombankMatch) {
-    return {
-      type: 'techcombank',
-      username: techcombankMatch[1],
-      amount: parseInt(techcombankMatch[2], 10),
-    };
-  }
-
-  // Case 5.5 (NEW): Code and amount separated by comma
-  // Example: "ZP7DCJUND45H, 144590" or "ZP7DCJUND45H,144590"
-  // Pattern: {CODE}, {AMOUNT} where CODE is alphanumeric (deposit reference from SePay)
-  const commaMatch = trimmed.match(/^([A-Z0-9]+)\s*,\s*(\d+)$/);
-  if (commaMatch) {
-    return commaMatch[1];
-  }
-
-  // Case 6 (NEW): Vietnamese generic text + 6-digit code (case-insensitive).
-  // Đặt TRƯỚC reject logic cuối vì content có space + letters sẽ bị reject.
-  // Các pattern hay gặp:
-  //   "Chuyen tien 123456" / "chuyen tien 123456"
-  //   "Thanh toan 123456" / "thanh toan 123456"
-  //   "Nap tien 123456" / "nap tien 123456"
-  //   "CK 123456" (chuyển khoản viết tắt)
-  //   "TT 123456" (thanh toán viết tắt)
-  //   "Chuyển tiền 123456" (có dấu tiếng Việt — regex có flag 'i' nhưng \w không bắt
-  //   dấu; bỏ qua các variant có dấu, chỉ cover dạng không dấu vì hầu hết bank
-  //   trong content CK dùng không dấu hoặc SePay normalize về không dấu).
-  // KHÔNG match "username 252000" vì pattern yêu cầu keyword cố định ở đầu.
-  const vietTextMatch = trimmed.match(/^(?:chuyen\s+tien|thanh\s+toan|nap\s+tien|ck|tt)\s+(\d{6})$/i);
-  if (vietTextMatch) {
-    return vietTextMatch[1];
-  }
-
-  // Reject old format like "username 252000"
-  // Pattern: has space AND has alphabetic characters → old format
-  if (trimmed.includes(' ') && /[a-zA-Z]/.test(trimmed)) {
-    return null;
-  }
-
-  return null;
+  // KHÔNG dùng .lean() — candidate cần là Mongoose document để autoApproveDeposit
+  // gọi được deposit.save({ session }).
+  return DepositRequest.find(query)
+    .sort({ createdAt: -1 })
+    .limit(50)
+    .populate('userId', 'username isActive');
 }
 
 // === POST /payinwebhook ===
@@ -342,15 +240,10 @@ router.post('/payinwebhook', verifyApiKey, async (req, res) => {
   // === Parse content → 6-digit code OR BIDV format ===
   const parsed = parseDepositCode(payload.content);
   if (!parsed) {
-    console.warn(`[SePay Webhook] Cannot parse deposit code from content: "${payload.content}" (id=${sepayId})`);
-    await updateWebhookLog(logId, {
-      processingStatus: 'ignored',
-      processingNote: `Cannot parse deposit code from content: "${payload.content}"`
-    });
-    notifyIgnored(payload, 'unparseable_content', {
-      content: payload.content,
-    });
-    return res.json({ success: true, ignored: 'unparseable_content' });
+    console.warn(
+      `[SePay Webhook] Cannot parse deposit code from content: "${payload.content}" (id=${sepayId}) ` +
+      `→ thử fallback match theo số tiền`
+    );
   }
 
   // === Find matching DepositRequest ===
@@ -367,7 +260,7 @@ router.post('/payinwebhook', verifyApiKey, async (req, res) => {
     })
       .sort({ createdAt: 1 })
       .populate('userId', 'username isActive');
-  } else if (parsed.type === 'scan-qr') {
+  } else if (parsed?.type === 'scan-qr') {
     // BIDV "Scan QR" format → match exact transferNote (giống 6-digit-code)
     matchType = 'scan-qr-format';
     candidate = await DepositRequest.findOne({
@@ -377,7 +270,7 @@ router.post('/payinwebhook', verifyApiKey, async (req, res) => {
     })
       .sort({ createdAt: 1 })
       .populate('userId', 'username isActive');
-  } else if (parsed.type === 'bidv' || parsed.type === 'techcombank') {
+  } else if (parsed?.type === 'bidv' || parsed?.type === 'techcombank') {
     // BIDV / Techcombank format → find user by username, then match amount + recent pending
     matchType = `${parsed.type}-format`;
     const { username: bidvUsername, amount: bidvAmount } = parsed;
@@ -413,12 +306,51 @@ router.post('/payinwebhook', verifyApiKey, async (req, res) => {
       .populate('userId', 'username isActive');
   }
 
+  // === Fallback: không tìm được theo mã nạp → thử khớp theo SỐ TIỀN ===
+  // Áp dụng khi:
+  //   - Content không parse được mã (vd: "ZP263100611362" — mã máy sinh của SePay).
+  //   - Có mã nhưng không tồn tại deposit pending nào mang mã đó.
+  // Điều kiện an toàn: chỉ có DUY NHẤT 1 deposit pending khớp số tiền (±1.000đ)
+  // được tạo trong khoảng thời gian gần đây → mới approve.
+  // Nếu có nhiều deposit cùng số tiền → KHÔNG approve, báo admin để xử lý tay.
   if (!candidate) {
-    const parseDetail = typeof parsed === 'string'
-      ? `code="${parsed}"`
-      : parsed.type === 'scan-qr'
-        ? `Scan QR code="${parsed.code}"`
-        : `BIDV username="${parsed.username}", amount=${parsed.amount}`;
+    const amountMatches = await findPendingDepositsByAmount(
+      payload.transferAmount,
+      payload.accountNumber
+    );
+
+    if (amountMatches.length === 1) {
+      candidate = amountMatches[0];
+      matchType = 'amount-fallback';
+      console.log(
+        `[SePay Webhook] ↩ Fallback match theo số tiền: ${payload.transferAmount.toLocaleString('vi-VN')}đ ` +
+        `→ deposit #${candidate._id.toString().slice(-8).toUpperCase()} ` +
+        `(user=${candidate.userId?.username}, createdAt=${candidate.createdAt?.toISOString()}) ` +
+        `(SePay id=${sepayId})`
+      );
+    } else if (amountMatches.length > 1) {
+      console.warn(
+        `[SePay Webhook] Ambiguous amount match: ${amountMatches.length} pending deposits cùng số tiền ` +
+        `${payload.transferAmount.toLocaleString('vi-VN')}đ → KHÔNG tự approve (SePay id=${sepayId})`
+      );
+      await updateWebhookLog(logId, {
+        processingStatus: 'ignored',
+        processingNote:
+          `Ambiguous amount match: ${amountMatches.length} pending deposits với số tiền ` +
+          `${payload.transferAmount} (đề tạo trong ${AMOUNT_MATCH_WINDOW_MINUTES} phút) — cần admin xử lý tay`
+      });
+      notifyIgnored(payload, 'ambiguous_amount', {
+        amount: payload.transferAmount,
+        matchCount: amountMatches.length,
+        depositIds: amountMatches.map((d) => d._id.toString()),
+        matchType: 'amount-fallback',
+      });
+      return res.json({ success: true, ignored: 'ambiguous_amount' });
+    }
+  }
+
+  if (!candidate) {
+    const parseDetail = describeMatch(matchType, parsed);
 
     console.warn(
       `[SePay Webhook] No matching pending deposit for ${parseDetail} via ${matchType} ` +
@@ -428,17 +360,21 @@ router.post('/payinwebhook', verifyApiKey, async (req, res) => {
       processingStatus: 'ignored',
       processingNote: `No matching pending deposit for ${parseDetail} (${matchType})`
     });
-    notifyIgnored(payload, 'no_match', {
+    // Nội dung không parse được → coi là 'unparseable_content', ngược lại là 'no_match'.
+    const reason = parsed ? 'no_match' : 'unparseable_content';
+    // Lưu ý: `typeof null === 'object'` nên phải check truthy trước khi đọc field.
+    const parsedObj = parsed && typeof parsed === 'object' ? parsed : null;
+    notifyIgnored(payload, reason, {
       parsedCode: typeof parsed === 'string'
         ? parsed
-        : parsed.type === 'scan-qr'
-          ? parsed.code
+        : parsedObj?.type === 'scan-qr'
+          ? parsedObj.code
           : null,
-      parsedUsername: typeof parsed === 'object' && parsed.type !== 'scan-qr' ? parsed.username : null,
-      parsedAmount: typeof parsed === 'object' && parsed.type !== 'scan-qr' ? parsed.amount : null,
+      parsedUsername: parsedObj && parsedObj.type !== 'scan-qr' ? parsedObj.username : null,
+      parsedAmount: parsedObj && parsedObj.type !== 'scan-qr' ? parsedObj.amount : null,
       matchType,
     });
-    return res.json({ success: true, ignored: 'no_match' });
+    return res.json({ success: true, ignored: reason });
   }
 
   // === Check user còn active không ===
@@ -499,11 +435,7 @@ router.post('/payinwebhook', verifyApiKey, async (req, res) => {
 
     // ✅ Webhook callback xử lý thành công — log tổng kết ở cấp handler
     const depositShortId = candidate._id.toString().slice(-8).toUpperCase();
-    const matchDetail = typeof parsed === 'string'
-      ? `code="${parsed}"`
-      : parsed.type === 'scan-qr'
-        ? `Scan QR code="${parsed.code}"`
-        : `BIDV user="${parsed.username}", amount=${parsed.amount.toLocaleString()}`;
+    const matchDetail = describeMatch(matchType, parsed);
 
     console.log(
       `[SePay Webhook] ✅ Approved via ${matchType} — ` +
@@ -645,13 +577,15 @@ async function sendApprovedDepositNotification(deposit, sepayPayload, user, spin
  * @param {Object} payload           Raw SePay payload (req.body)
  * @param {string} reason            Mã lý do:
  *                                   'unparseable_content' | 'user_not_found' |
- *                                   'no_match' | 'user_inactive' | 'amount_mismatch'
+ *                                   'no_match' | 'user_inactive' | 'amount_mismatch' |
+ *                                   'ambiguous_amount'
  * @param {Object} extra             Context thêm tùy theo reason:
  *   - unparseable_content: { content }
  *   - user_not_found:      { parsedUsername, parsedAmount, matchType }
  *   - no_match:            { parsedUsername?, parsedAmount?, parsedCode?, matchType }
  *   - user_inactive:       { depositId, username }
  *   - amount_mismatch:     { depositId, username, expectedAmount, receivedAmount, diff }
+ *   - ambiguous_amount:    { amount, matchCount, depositIds, matchType }
  */
 async function sendIgnoredDepositNotification(payload, reason, extra = {}) {
   try {
@@ -688,6 +622,13 @@ async function sendIgnoredDepositNotification(payload, reason, extra = {}) {
           '⚠️ User bị inactive nhưng vẫn nhận tiền.\n' +
           '   • Có thể cần review tài khoản (chargeback?) hoặc unlock thủ công.';
         break;
+      case 'ambiguous_amount':
+        header = '⚠️ <b>BỎ QUA — NHIỀU DEPOSIT CÙNG SỐ TIỀN (SePay)</b>';
+        suggestion =
+          '⚠️ Không tìm được mã nạp, mà có nhiều yêu cầu nạp cùng số tiền.\n' +
+          '   • Hệ thống KHÔNG tự duyệt để tránh cộng nhầm cho user khác.\n' +
+          '   • Cần admin kiểm tra thủ công và duyệt yêu cầu nạp đúng user.';
+        break;
       case 'no_match':
         header = '⚠️ <b>BỎ QUA — KHÔNG MATCH DEPOSIT (SePay)';
         suggestion =
@@ -721,7 +662,16 @@ async function sendIgnoredDepositNotification(payload, reason, extra = {}) {
     switch (reason) {
       case 'unparseable_content':
         detailLines.push(
-          `\n<b>Lý do:</b> Không parse được nội dung chuyển khoản — không match 6-digit code, BIDV format hay Techcombank format.`
+          `\n<b>Lý do:</b> Không parse được nội dung chuyển khoản — không match 6-digit code, BIDV format hay Techcombank format.`,
+          `<b>Đã thử fallback theo số tiền:</b> không tìm được yêu cầu nạp pending nào khớp số tiền.`
+        );
+        break;
+      case 'ambiguous_amount':
+        detailLines.push(
+          `\n<b>Lý do:</b> Không tìm được mã nạp, mà có <b>${extra.matchCount || 'N/A'}</b> yêu cầu nạp pending cùng số tiền.`,
+          `<b>Số tiền nhận:</b> ${formatVnd(extra.amount)}`,
+          `<b>Deposit IDs:</b> <code>${(extra.depositIds || []).join(', ') || 'N/A'}</code>`,
+          `<b>Match type:</b> <code>${extra.matchType || 'amount-fallback'}</code>`
         );
         break;
       case 'user_not_found':
