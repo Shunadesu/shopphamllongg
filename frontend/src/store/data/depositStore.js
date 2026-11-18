@@ -6,6 +6,9 @@ const BANK_TTL = 30 * 60 * 1000; // 30 minutes
 const REQUESTS_TTL = 30 * 1000; // 30 seconds
 const TOP_TTL = 10 * 60 * 1000; // 10 minutes
 const LIMIT_TTL = 15 * 1000; // 15 seconds — bộ đếm lệnh nạp pending cần tươi
+// Số bản ghi tối thiểu luôn được tải về — dùng chung cache cho thanh "Top nạp tháng"
+// dưới cùng và mục bảng xếp hạng trên trang Home (một request duy nhất).
+const DEFAULT_TOP_LIMIT = 20;
 
 export const useDepositStore = create(
   persist(
@@ -19,8 +22,15 @@ export const useDepositStore = create(
       requestsLoading: false,
 
       topDepositors: [],
+      topDepositorsMonth: '',
       lastFetchedTop: 0,
       topLoading: false,
+      // Số lượng bản ghi đã yêu cầu từ server — dùng để quyết định có cần
+      // fetch lại với limit lớn hơn hay không.
+      topDepositorsLimit: 0,
+      // Promise của request đang chạy + limit tương ứng (chống gọi trùng).
+      topFetchPromise: null,
+      topFetchLimit: 0,
 
       // Giới hạn lệnh nạp pending: { pendingCount, maxPending, ipPendingCount, maxPendingPerIp, ipMasked }
       depositLimit: null,
@@ -79,28 +89,73 @@ export const useDepositStore = create(
         }
       },
 
-      fetchTopDepositors: async (force = false) => {
+      // Lấy bảng xếp hạng người nạp trong tháng.
+      // `limit` = số bản ghi tối đa cần. Cache luôn giữ tối thiểu
+      // DEFAULT_TOP_LIMIT bản ghi để mọi nơi dùng chung một request duy nhất
+      // (thanh dưới cùng + mục trên trang Home).
+      //
+      // `topFetchPromise` giữ request đang chạy để tránh gọi trùng khi
+      // BottomStatusBar và TopDepositorsSection mount cùng lúc.
+      fetchTopDepositors: async (force = false, limit = DEFAULT_TOP_LIMIT) => {
         const state = get();
-        if (!force && Array.isArray(state.topDepositors) && state.topDepositors.length > 0 && Date.now() - state.lastFetchedTop < TOP_TTL) {
+        const wantLimit = Math.max(limit, DEFAULT_TOP_LIMIT);
+
+        if (
+          !force &&
+          state.lastFetchedTop > 0 &&
+          state.topDepositorsLimit >= wantLimit &&
+          Date.now() - state.lastFetchedTop < TOP_TTL
+        ) {
           return state.topDepositors;
         }
-        set({ topLoading: true, error: null });
-        try {
-          const res = await api.get('/deposits/top-depositors');
-          // Đảm bảo luôn là array; nếu API trả object thì lấy mảng đầu tiên tìm được
-          let data = res.data;
-          if (!Array.isArray(data)) {
-            if (Array.isArray(data?.depositors)) data = data.depositors;
-            else if (Array.isArray(data?.data)) data = data.data;
-            else if (Array.isArray(data?.items)) data = data.items;
-            else data = [];
-          }
-          set({ topDepositors: data, lastFetchedTop: Date.now(), topLoading: false });
-          return data;
-        } catch (err) {
-          set({ topLoading: false, error: err });
-          throw err;
+
+        // Đang có request cho cùng limit → dùng lại, không gọi thêm.
+        if (!force && state.topFetchPromise && state.topFetchLimit === wantLimit) {
+          return state.topFetchPromise;
         }
+
+        set({ topLoading: true, error: null, topFetchLimit: wantLimit });
+
+        const promise = api
+          .get('/deposits/top-depositors', { params: { limit: wantLimit } })
+          .then((res) => {
+            // Response mới: { monthLabel, depositors: [...] }
+            // Fallback về array thuần để tương thích nếu server chưa được deploy lại.
+            const raw = res.data;
+            let data = raw;
+            if (!Array.isArray(data)) {
+              if (Array.isArray(data?.depositors)) data = data.depositors;
+              else if (Array.isArray(data?.data)) data = data.data;
+              else if (Array.isArray(data?.items)) data = data.items;
+              else data = [];
+            }
+
+            const monthLabel = typeof raw?.monthLabel === 'string' ? raw.monthLabel : '';
+
+            set({
+              topDepositors: data,
+              topDepositorsMonth: monthLabel,
+              topDepositorsLimit: wantLimit,
+              lastFetchedTop: Date.now(),
+              topLoading: false,
+            });
+            // Chỉ xóa promise nếu nó vẫn là promise của request này — tránh
+            // xóa nhầm khi có một request mới (force refresh) đang chạy.
+            set((s) =>
+              s.topFetchPromise === promise ? { topFetchPromise: null } : {}
+            );
+            return data;
+          })
+          .catch((err) => {
+            set({ topLoading: false, error: err });
+            set((s) =>
+              s.topFetchPromise === promise ? { topFetchPromise: null } : {}
+            );
+            throw err;
+          });
+
+        set({ topFetchPromise: promise });
+        return promise;
       },
 
       addMyRequest: (req) => {
@@ -172,6 +227,10 @@ export const useDepositStore = create(
         lastFetchedRequests: 0,
         requestsLoading: false,
         topDepositors: [],
+        topDepositorsMonth: '',
+        topDepositorsLimit: 0,
+        topFetchPromise: null,
+        topFetchLimit: 0,
         lastFetchedTop: 0,
         topLoading: false,
         depositLimit: null,
@@ -181,11 +240,25 @@ export const useDepositStore = create(
     }),
     {
       name: 'deposit-storage',
+      // KHÔNG persist `topDepositors` / `topDepositorsMonth`:
+      // dữ liệu bảng xếp hạng phụ thuộc tháng hiện tại. Cache trong
+      // localStorage sẽ cũ sang tháng mới và hiển thị sai người nạp.
+      // TTL 10 phút trong RAM vẫn giữ, không tăng tải server.
+      //
+      // `version: 2` + `migrate` dọn dữ liệu `topDepositors` còn sót lại
+      // trong localStorage của người dùng từ trước khi deploy bản này.
+      version: 2,
+      migrate: (persistedState, fromVersion) => {
+        if (!persistedState) return persistedState;
+        if (fromVersion < 2) {
+          delete persistedState.topDepositors;
+          delete persistedState.lastFetchedTop;
+        }
+        return persistedState;
+      },
       partialize: (state) => ({
         bankAccounts: state.bankAccounts,
         lastFetchedBanks: state.lastFetchedBanks,
-        topDepositors: state.topDepositors,
-        lastFetchedTop: state.lastFetchedTop,
       }),
     }
   )

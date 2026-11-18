@@ -77,8 +77,17 @@ api.interceptors.request.use(
         '/cart',
         '/checkout',
       ];
+      // Endpoint công khai (không cần đăng nhập) — luôn cho phép gọi.
+      // `/deposits/top-depositors` là bảng xếp hạng người nạp trong tháng,
+      // hiển thị cho khách chưa đăng nhập.
+      const publicEndpoints = [
+        '/deposits/top-depositors',
+      ];
       const url = config.url || '';
-      if (protectedPrefixes.some((prefix) => url === prefix || url.startsWith(prefix + '/') || url.startsWith(prefix + '?'))) {
+      const isPublic = publicEndpoints.some(
+        (p) => url === p || url.startsWith(p + '?')
+      );
+      if (!isPublic && protectedPrefixes.some((prefix) => url === prefix || url.startsWith(prefix + '/') || url.startsWith(prefix + '?'))) {
         if (import.meta.env.DEV) {
           console.log(`[API Skipped] No token, skipping ${config.method?.toUpperCase()} ${url}`);
         }

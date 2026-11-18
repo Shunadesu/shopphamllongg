@@ -633,7 +633,7 @@
   color: #93C5FD !important;
 }
 
-/* ── prefers-reduced-motion: tắt toàn bộ animation ─────────────────────── */
+/* ── prefers-reduced-motion: tắt animation ───────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -642,6 +642,46 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* Ngoại lệ: thanh "Top nạp" ở BottomStatusBar là dải thông tin chạy ngang,
+     người dùng vẫn muốn nó tự trượt. Khôi phục animation cho riêng phần tử này. */
+  .marquee-content {
+    animation: marquee-scroll var(--marquee-duration) linear infinite !important;
+    animation-duration: var(--marquee-duration) !important;
+    animation-iteration-count: infinite !important;
+  }
+}
+
+/* ── Marquee thanh "Top nạp" (BottomStatusBar) ────────────────────────────
+   Dải thông tin chạy ngang liên tục, lặp mượt bằng cách nhân đôi nội dung.
+   --marquee-duration: thời gian cho một vòng trượt (càng lớn càng chậm). */
+:root {
+  --marquee-duration: 75s;
+}
+
+.marquee-container {
+  overflow: hidden;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.marquee-content {
+  display: inline-block;
+  animation: marquee-scroll var(--marquee-duration) linear infinite;
+  will-change: transform;
+}
+
+.marquee-content:hover {
+  animation-play-state: paused;
+}
+
+@keyframes marquee-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
   }
 }
 

@@ -407,23 +407,38 @@ router.get('/top-depositors', async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit, 10) || 10, 50);
 
-    // Start of current month
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
+    // === Mốc tháng theo giờ Việt Nam (UTC+7 cố định, không DST) ===
+    // Server thường chạy UTC nên `new Date()` + setHours(0,0,0,0) sẽ lệch 7 giờ
+    // so với giờ VN → tính sai ranh giới đầu tháng.
+    const nowVN = new Date(Date.now() + 7 * 60 * 60 * 1000);
+    const startOfMonthVN = new Date(
+      Date.UTC(nowVN.getUTCFullYear(), nowVN.getUTCMonth(), 1) - 7 * 60 * 60 * 1000
+    );
+    // Nhãn tháng hiển thị cho frontend, ví dụ "11/2026"
+    const monthLabel = `${String(nowVN.getUTCMonth() + 1).padStart(2, '0')}/${nowVN.getUTCFullYear()}`;
 
     const topDepositors = await DepositRequest.aggregate([
       {
         $match: {
           status: 'approved',
-          createdAt: { $gte: startOfMonth }
+          // Lọc theo thời điểm tiền được DUYỆT (processedAt), không theo
+          // createdAt — nếu không, yêu cầu tạo tháng trước nhưng duyệt tháng này
+          // sẽ bị tính nhầm sang tháng trước và ngược lại.
+          // Fallback `createdAt` cho dữ liệu cũ chưa có processedAt.
+          $or: [
+            { processedAt: { $gte: startOfMonthVN } },
+            { processedAt: null, createdAt: { $gte: startOfMonthVN } },
+          ],
         }
       },
       {
         $group: {
           _id: '$userId',
-          totalAmount: { $sum: '$amount' },
-          count: { $sum: 1 }
+          // Tổng theo số tiền THỰC CỘNG vào số dư:
+          // - bank: receivedAmount = null → dùng amount
+          // - card: receivedAmount = số tiền user nhận (sau chiết khấu)
+          totalAmount: { $sum: { $ifNull: ['$receivedAmount', '$amount'] } },
+          count: { $sum: 1 },
         }
       },
       { $sort: { totalAmount: -1 } },
@@ -444,12 +459,11 @@ router.get('/top-depositors', async (req, res) => {
           count: 1,
           fullName: { $ifNull: ['$user.fullName', 'Người dùng'] },
           username: '$user.username',
-          avatar: '$user.avatar'
         }
       }
     ]);
 
-    res.json(topDepositors);
+    res.json({ monthLabel, depositors: topDepositors });
   } catch (error) {
     console.error('Get top depositors error:', error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });

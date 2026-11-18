@@ -21,6 +21,7 @@ import toast from 'react-hot-toast';
 import LazyImage from '../components/LazyImage';
 import CategoryAccountSection from '../components/CategoryAccountSection';
 import SubcategoryGrid from '../components/SubcategoryGrid';
+import TopDepositorsSection from '../components/TopDepositorsSection';
 import PaginationNav from '../components/Pagination';
 
 // Skeleton loader for category cards
@@ -879,7 +880,9 @@ const Home = () => {
       </section>
       ) : null}
 
-
+      {/* Top tài khoản nạp trong tháng — đặt dưới danh sách tài khoản,
+          dùng chung cache với thanh "Top nạp tháng" dưới cùng màn hình */}
+      <TopDepositorsSection />
 
       {/* Buy Now Modal */}
       <BuyNowModal

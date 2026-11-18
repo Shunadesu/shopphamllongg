@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { FiHome, FiUser, FiCreditCard, FiUserCheck } from 'react-icons/fi';
 import api from '../utils/api';
@@ -6,30 +6,11 @@ import { useAuthStore } from '../store/authStore';
 import { useTopDepositors } from '../hooks/useDeposits';
 import { useProtectedNavigate } from '../hooks/useProtectedNavigate';
 
-// Mock data for when there are no real deposits - full names
-const MOCK_TOP_DEPOSITORS = [
-  { fullName: 'Nguyễn Minh Tuấn', totalAmount: 2500000, isMock: true },
-  { fullName: 'Trần Thanh Hà', totalAmount: 1800000, isMock: true },
-  { fullName: 'Lê Hoàng Nam', totalAmount: 1500000, isMock: true },
-  { fullName: 'Phạm Thu Hương', totalAmount: 1200000, isMock: true },
-  { fullName: 'Hoàng Đức Anh', totalAmount: 950000, isMock: true },
-  { fullName: 'Vũ Mai Phương', totalAmount: 850000, isMock: true },
-  { fullName: 'Đặng Xuân Hùng', totalAmount: 720000, isMock: true },
-  { fullName: 'Bùi Thị Lan', totalAmount: 680000, isMock: true },
-  { fullName: 'Đỗ Văn Quang', totalAmount: 550000, isMock: true },
-  { fullName: 'Lý Thị Mai', totalAmount: 480000, isMock: true },
-  { fullName: 'Ngô Minh Khoa', totalAmount: 420000, isMock: true },
-  { fullName: 'Phan Thị Ngọc', totalAmount: 380000, isMock: true },
-  { fullName: 'Trịnh Đình Phúc', totalAmount: 350000, isMock: true },
-  { fullName: 'Hồ Thị Thu', totalAmount: 320000, isMock: true },
-  { fullName: 'Võ Thanh Sơn', totalAmount: 280000, isMock: true },
-];
-
 const BottomStatusBar = ({ onOpenAuth }) => {
   const [isOnline, setIsOnline] = useState(false);
   const location = useLocation();
   const { isAuthenticated, user } = useAuthStore();
-  const { data: depositorsData } = useTopDepositors();
+  const { data: topDepositors, monthLabel } = useTopDepositors({ limit: 20 });
 
   // Chặn điều hướng tới /profile?view=deposit khi chưa đăng nhập:
   // chỉ mở drawer đăng nhập, KHÔNG đổi URL (tránh màn hình trắng + URL sai).
@@ -53,26 +34,9 @@ const BottomStatusBar = ({ onOpenAuth }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // Merge real depositors with mock data, sort, take top 10
-  const topDepositors = useMemo(() => {
-    const safeData = Array.isArray(depositorsData) ? depositorsData : [];
-    const realDepositors = safeData.map(d => ({ ...d, isMock: false }));
-    const allDepositors = [...realDepositors];
-
-    MOCK_TOP_DEPOSITORS.forEach(mock => {
-      if (allDepositors.length < 10) {
-        const exists = allDepositors.some(
-          d => !d.isMock && d.totalAmount === mock.totalAmount
-        );
-        if (!exists) {
-          allDepositors.push(mock);
-        }
-      }
-    });
-
-    allDepositors.sort((a, b) => b.totalAmount - a.totalAmount);
-    return allDepositors.slice(0, 10);
-  }, [depositorsData]);
+  // Dữ liệu thật từ server — server đã sort totalAmount giảm dần.
+  // Không còn mock data: thanh này chỉ hiển thị người nạp thật.
+  const topList = Array.isArray(topDepositors) ? topDepositors : [];
 
   // Format currency
   const formatCurrency = (amount) => {
@@ -114,48 +78,54 @@ const BottomStatusBar = ({ onOpenAuth }) => {
           {/* Right side - Top depositors with marquee animation */}
           <div className="flex items-center space-x-4 overflow-hidden justify-start w-full">
             <span className="text-xs text-gray-400 flex-shrink-0">
-              Top nạp tháng:
+              {monthLabel ? `Top nạp ${monthLabel}:` : 'Top nạp tháng:'}
             </span>
-            <div className="relative overflow-hidden flex-1">
-              {/* Gradient fade effects */}
-              <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-gray-900 to-transparent z-10 pointer-events-none" />
-              <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-gray-900 to-transparent z-10 pointer-events-none" />
-              
-              {/* Scrolling container */}
-              <div className="marquee-container">
-                <div className="marquee-content">
-                  {topDepositors.map((depositor, index) => (
-                    <span
-                      key={depositor._id || `mock-${index}`}
-                      className="inline-flex items-center"
-                    >
-                      <span className="text-xs text-gray-300">
-                        {depositor.fullName}
+            {topList.length === 0 ? (
+              <span className="text-xs text-gray-500 flex-shrink-0">
+                Chưa có dữ liệu nạp trong tháng
+              </span>
+            ) : (
+              <div className="relative overflow-hidden flex-1">
+                {/* Gradient fade effects */}
+                <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-gray-900 to-transparent z-10 pointer-events-none" />
+                <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-gray-900 to-transparent z-10 pointer-events-none" />
+
+                {/* Scrolling container */}
+                <div className="marquee-container">
+                  <div className="marquee-content">
+                    {topList.map((depositor, index) => (
+                      <span
+                        key={depositor._id || `dep-${index}`}
+                        className="inline-flex items-center"
+                      >
+                        <span className="text-xs text-gray-300">
+                          {depositor.fullName}
+                        </span>
+                        <span className="text-xs font-semibold mx-1 text-green-400">
+                          {formatCurrency(depositor.totalAmount)}
+                        </span>
+                        <span className="text-gray-600 mx-2">•</span>
                       </span>
-                      <span className={`text-xs font-semibold mx-1 ${depositor.isMock ? 'text-amber-400' : 'text-green-400'}`}>
-                        {formatCurrency(depositor.totalAmount)}
+                    ))}
+                    {/* Duplicate for seamless loop */}
+                    {topList.map((depositor, index) => (
+                      <span
+                        key={`dup-${depositor._id || index}`}
+                        className="inline-flex items-center"
+                      >
+                        <span className="text-xs text-gray-300">
+                          {depositor.fullName}
+                        </span>
+                        <span className="text-xs font-semibold mx-1 text-green-400">
+                          {formatCurrency(depositor.totalAmount)}
+                        </span>
+                        <span className="text-gray-600 mx-2">•</span>
                       </span>
-                      <span className="text-gray-600 mx-2">•</span>
-                    </span>
-                  ))}
-                  {/* Duplicate for seamless loop */}
-                  {topDepositors.map((depositor, index) => (
-                    <span
-                      key={`dup-${depositor._id || index}`}
-                      className="inline-flex items-center"
-                    >
-                      <span className="text-xs text-gray-300">
-                        {depositor.fullName}
-                      </span>
-                      <span className={`text-xs font-semibold mx-1 ${depositor.isMock ? 'text-amber-400' : 'text-green-400'}`}>
-                        {formatCurrency(depositor.totalAmount)}
-                      </span>
-                      <span className="text-gray-600 mx-2">•</span>
-                    </span>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
@@ -186,39 +156,7 @@ const BottomStatusBar = ({ onOpenAuth }) => {
         </div>
       </div>
 
-      {/* Marquee Animation Styles */}
-      <style>{`
-        .marquee-container {
-          overflow: hidden;
-          white-space: nowrap;
-        }
-
-        .marquee-content {
-          display: inline-block;
-          animation: marquee 30s linear infinite;
-          will-change: transform;
-        }
-
-        .marquee-content:hover {
-          animation-play-state: paused;
-        }
-
-        @keyframes marquee {
-          0% {
-            transform: translateX(0);
-          }
-          100% {
-            transform: translateX(-50%);
-          }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .marquee-content {
-            animation: none;
-            will-change: auto;
-          }
-        }
-      `}</style>
+      {/* Marquee: CSS nằm trong src/index.css (.marquee-container / .marquee-content) */}
     </>
   );
 };
